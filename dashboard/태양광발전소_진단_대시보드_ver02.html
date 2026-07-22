@@ -157,6 +157,8 @@
   .bld-remove:hover{ background:var(--status-critical-bg); color:var(--status-critical); }
   #btn-add-building{ width:100%; margin-top:2px; }
 
+  .region-select{ width:100%; padding:7px 9px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-primary); font-size:0.85rem; }
+
   .dropzone{
     border:1.5px dashed var(--border); border-radius:12px; padding:22px 14px; text-align:center; cursor:pointer;
     background:var(--surface-2); transition:border-color .15s, background .15s;
@@ -265,6 +267,32 @@
 
   <div class="layout">
     <aside>
+      <section class="card panel">
+        <h2>지역별 일사량 참고자료</h2>
+        <p class="inv-hint">지역을 선택하면 최근 10년(2016~2025) 기상청 일사량 자료 기준 월별 일평균값과 10년 평균을 참고할 수 있습니다.</p>
+        <select id="region-select" class="region-select">
+          <option value="">-- 지역을 선택하세요 --</option>
+          <option value="서울경기">서울경기</option>
+          <option value="강원영동">강원영동</option>
+          <option value="강원영서">강원영서</option>
+          <option value="충북">충북</option>
+          <option value="충남">충남</option>
+          <option value="경북">경북</option>
+          <option value="경남">경남</option>
+          <option value="전북">전북</option>
+          <option value="전남">전남</option>
+          <option value="제주">제주</option>
+          <option value="전국평균">전국평균</option>
+        </select>
+        <div id="region-result" style="display:none;">
+          <div class="live-stat">
+            <div class="label">10년 평균 (2016~2025)</div>
+            <div class="value num" id="region-avg10">— <small>kWh/m²/일</small></div>
+          </div>
+          <div class="chart-wrap" id="region-chart-wrap" style="margin-top:12px;"></div>
+        </div>
+      </section>
+
       <section class="card panel">
         <h2>건물 구성</h2>
         <p class="inv-hint">발전소 내 건물(동)별로 설계 파라미터·인버터·실측 데이터를 각각 관리합니다. 카드를 클릭해 편집할 건물을 선택하세요.</p>
@@ -472,6 +500,77 @@
   function escapeHtml(s){
     return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   }
+
+  // ---------- region insolation reference data ----------
+  // 출처: 기상청 기상자료개방포털(data.kma.go.kr) 일조일사 통계, 2016~2025년 동일월 일평균값 평균, 단위 kWh/m²/일
+  var REGION_INSOLATION = {
+    "서울경기": [2.34,3.17,4.12,4.98,5.55,5.42,4.45,4.29,3.97,3.27,2.47,2.12],
+    "강원영동": [2.66,3.42,4.11,5.22,5.78,5.62,4.77,4.25,3.63,2.99,2.68,2.35],
+    "강원영서": [2.51,3.35,4.12,5.12,5.66,5.64,4.68,4.39,3.88,3.15,2.58,2.21],
+    "충북":     [2.51,3.38,4.26,5.24,5.90,5.80,4.83,4.75,4.01,3.42,2.72,2.25],
+    "충남":     [2.40,3.30,4.34,5.25,5.84,5.63,4.70,4.66,4.07,3.46,2.62,2.11],
+    "경북":     [2.67,3.45,4.23,5.24,5.83,5.67,4.78,4.74,3.68,3.30,2.77,2.46],
+    "경남":     [2.81,3.53,4.18,5.03,5.49,5.35,4.62,4.98,3.67,3.54,2.98,2.68],
+    "전북":     [2.49,3.38,4.34,5.24,5.82,5.51,4.70,4.77,4.05,3.53,2.72,2.22],
+    "전남":     [2.54,3.30,4.34,5.23,5.73,5.46,4.74,4.96,4.05,3.67,2.86,2.29],
+    "제주":     [1.70,2.58,3.97,5.07,5.54,5.13,5.13,5.32,3.69,3.24,2.50,1.59],
+    "전국평균": [2.46,3.29,4.20,5.16,5.71,5.52,4.74,4.71,3.87,3.36,2.69,2.23]
+  };
+
+  function renderRegionChart(data){
+    var wrap = document.getElementById("region-chart-wrap");
+    wrap.innerHTML = "";
+    var W=300, H=170, ML=8, MR=8, MT=18, MB=22;
+    var plotW=W-ML-MR, plotH=H-MT-MB;
+    var maxVal = Math.max.apply(null, data);
+    var yMax = niceCeil(maxVal*1.18);
+    var svgNS = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(svgNS,"svg");
+    svg.setAttribute("class","chart-svg");
+    svg.setAttribute("viewBox","0 0 "+W+" "+H);
+    var baselineColor = css("--baseline"), mutedColor = css("--muted"), barColor = css("--series-theo");
+    var base = document.createElementNS(svgNS,"line");
+    base.setAttribute("x1",ML); base.setAttribute("x2",W-MR);
+    base.setAttribute("y1",MT+plotH); base.setAttribute("y2",MT+plotH);
+    base.setAttribute("stroke",baselineColor); base.setAttribute("stroke-width","1");
+    svg.appendChild(base);
+    var slot = plotW/data.length, barW = slot*0.62;
+    data.forEach(function(v,i){
+      var cx = ML + (i+0.5)*slot;
+      var barH = (v/yMax)*plotH;
+      var rect = document.createElementNS(svgNS,"rect");
+      rect.setAttribute("x", cx-barW/2); rect.setAttribute("y", MT+plotH-barH);
+      rect.setAttribute("width", barW); rect.setAttribute("height", Math.max(0,barH));
+      rect.setAttribute("fill", barColor); rect.setAttribute("rx","2");
+      svg.appendChild(rect);
+      var vLabel = document.createElementNS(svgNS,"text");
+      vLabel.setAttribute("x", cx); vLabel.setAttribute("y", MT+plotH-barH-4);
+      vLabel.setAttribute("text-anchor","middle"); vLabel.setAttribute("font-size","8.5");
+      vLabel.setAttribute("fill", mutedColor);
+      vLabel.textContent = v.toFixed(2);
+      svg.appendChild(vLabel);
+      var mLabel = document.createElementNS(svgNS,"text");
+      mLabel.setAttribute("x", cx); mLabel.setAttribute("y", H-6);
+      mLabel.setAttribute("text-anchor","middle"); mLabel.setAttribute("font-size","9");
+      mLabel.setAttribute("fill", mutedColor);
+      mLabel.textContent = (i+1)+"월";
+      svg.appendChild(mLabel);
+    });
+    wrap.appendChild(svg);
+  }
+
+  function renderRegionResult(){
+    var region = document.getElementById("region-select").value;
+    var box = document.getElementById("region-result");
+    if(!region || !REGION_INSOLATION[region]){ box.style.display="none"; return; }
+    box.style.display = "block";
+    var data = REGION_INSOLATION[region];
+    var avg10 = data.reduce(function(a,v){return a+v;},0)/data.length;
+    document.getElementById("region-avg10").innerHTML = fmt(avg10,2) + " <small>kWh/m²/일</small>";
+    renderRegionChart(data);
+  }
+
+  document.getElementById("region-select").addEventListener("change", renderRegionResult);
 
   // ---------- theoretical calc ----------
   function totalDCkW(b){
