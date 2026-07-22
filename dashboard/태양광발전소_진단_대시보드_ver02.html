@@ -1,4 +1,4 @@
-<title>태양광 발전소 진단 대시보드 (ver02)</title>
+<title>태양광 발전소 진단</title>
 <style>
   :root{
     color-scheme: light;
@@ -256,11 +256,14 @@
   .row-chip.module{ background:var(--status-warning-bg); color:var(--status-warning); }
 
   .visually-hidden{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+  .site-breadcrumb{ font-family: 'Malgun Gothic','맑은 고딕',Arial,sans-serif; font-size:20px; font-weight:700; color:#24384a; border-bottom:2px solid #ef7c1b; padding:0 0 10px; margin:0 0 20px; }
 </style>
 
 <div class="app">
+  <h1 class="site-breadcrumb">태양광발전 &gt; 발전량분석</h1>
   <div class="masthead">
-    <h1>☀ 태양광 발전소 진단 대시보드<span class="version-badge">v02</span></h1>
+    <h1>☀ 태양광 발전소 진단<span class="version-badge">v02</span></h1>
     <p>설계 파라미터로 이론 발전량을 계산하고, 실측 데이터를 업로드해 스트링 단선·모듈 열화를 자동으로 진단합니다. 건물(동)별로 나누어 관리할 수 있습니다.</p>
     <span class="privacy">🔒 모든 계산은 브라우저 안에서만 실행되며 업로드한 파일은 서버로 전송되지 않습니다</span>
   </div>
@@ -312,11 +315,17 @@
         </div>
 
         <div class="field" data-field="genHours">
-          <div class="field-head"><label for="in-genHours">일일 평균 발전시간</label><span class="val num" id="val-genHours">3.36 시간/일</span></div>
+          <div class="field-head"><label for="in-genHours">일일 평균 발전시간</label><span class="val num" id="val-genHours">3.34 시간/일</span></div>
           <div class="field-row">
-            <input type="range" id="rg-genHours" min="1.00" max="8.00" step="0.01" value="3.36">
-            <input type="number" class="num-input num" id="in-genHours" min="0" max="24" step="0.01" value="3.36">
+            <input type="range" id="rg-genHours" min="1.00" max="8.00" step="0.01" value="3.34">
+            <input type="number" class="num-input num" id="in-genHours" min="0" max="24" step="0.01" value="3.34">
           </div>
+        </div>
+
+        <div class="live-stat" id="sys-eff-box" style="display:none;">
+          <div class="label">시스템 종합 효율</div>
+          <div class="value num" id="val-sysEff">— <small>%</small></div>
+          <div class="inv-summary-line2" id="sys-eff-detail"></div>
         </div>
 
       </section>
@@ -463,7 +472,7 @@
     return {
       id: buildingIdCounter++,
       name: name,
-      params: { moduleW:645, genHours:3.36, yr1Loss:1.5, yrNLoss:0.33, currentYear:1 },
+      params: { moduleW:645, genHours:3.34, yr1Loss:1.5, yrNLoss:0.33, currentYear:1 },
       inverters: [ {kw:100, arrays:[ {S:15, P:15} ]} ],
       records: [],
       events: [],
@@ -520,10 +529,10 @@
   function renderRegionChart(data){
     var wrap = document.getElementById("region-chart-wrap");
     wrap.innerHTML = "";
-    var W=300, H=170, ML=8, MR=8, MT=18, MB=22;
+    var W=300, H=110, ML=8, MR=8, MT=6, MB=14;
     var plotW=W-ML-MR, plotH=H-MT-MB;
     var maxVal = Math.max.apply(null, data);
-    var yMax = niceCeil(maxVal*1.18);
+    var yMax = maxVal*1.15;
     var svgNS = "http://www.w3.org/2000/svg";
     var svg = document.createElementNS(svgNS,"svg");
     svg.setAttribute("class","chart-svg");
@@ -534,24 +543,24 @@
     base.setAttribute("y1",MT+plotH); base.setAttribute("y2",MT+plotH);
     base.setAttribute("stroke",baselineColor); base.setAttribute("stroke-width","1");
     svg.appendChild(base);
-    var slot = plotW/data.length, barW = slot*0.62;
+    var slot = plotW/data.length, barW = slot*0.62*0.8;
     data.forEach(function(v,i){
       var cx = ML + (i+0.5)*slot;
       var barH = (v/yMax)*plotH;
       var rect = document.createElementNS(svgNS,"rect");
       rect.setAttribute("x", cx-barW/2); rect.setAttribute("y", MT+plotH-barH);
       rect.setAttribute("width", barW); rect.setAttribute("height", Math.max(0,barH));
-      rect.setAttribute("fill", barColor); rect.setAttribute("rx","2");
+      rect.setAttribute("fill", barColor); rect.setAttribute("rx","1.5");
       svg.appendChild(rect);
       var vLabel = document.createElementNS(svgNS,"text");
-      vLabel.setAttribute("x", cx); vLabel.setAttribute("y", MT+plotH-barH-4);
-      vLabel.setAttribute("text-anchor","middle"); vLabel.setAttribute("font-size","8.5");
+      vLabel.setAttribute("x", cx); vLabel.setAttribute("y", MT+plotH-barH-3);
+      vLabel.setAttribute("text-anchor","middle"); vLabel.setAttribute("font-size","5.1");
       vLabel.setAttribute("fill", mutedColor);
       vLabel.textContent = v.toFixed(2);
       svg.appendChild(vLabel);
       var mLabel = document.createElementNS(svgNS,"text");
-      mLabel.setAttribute("x", cx); mLabel.setAttribute("y", H-6);
-      mLabel.setAttribute("text-anchor","middle"); mLabel.setAttribute("font-size","9");
+      mLabel.setAttribute("x", cx); mLabel.setAttribute("y", H-4);
+      mLabel.setAttribute("text-anchor","middle"); mLabel.setAttribute("font-size","5.4");
       mLabel.setAttribute("fill", mutedColor);
       mLabel.textContent = (i+1)+"월";
       svg.appendChild(mLabel);
@@ -559,15 +568,36 @@
     wrap.appendChild(svg);
   }
 
+  function regionAvg10(region){
+    var data = REGION_INSOLATION[region];
+    if(!data) return null;
+    return data.reduce(function(a,v){return a+v;},0)/data.length;
+  }
+
   function renderRegionResult(){
     var region = document.getElementById("region-select").value;
     var box = document.getElementById("region-result");
-    if(!region || !REGION_INSOLATION[region]){ box.style.display="none"; return; }
+    if(!region || !REGION_INSOLATION[region]){ box.style.display="none"; }
+    else {
+      box.style.display = "block";
+      var data = REGION_INSOLATION[region];
+      var avg10 = regionAvg10(region);
+      document.getElementById("region-avg10").innerHTML = fmt(avg10,2) + " <small>kWh/m²/일</small>";
+      renderRegionChart(data);
+    }
+    updateSysEfficiency(activeBuilding());
+  }
+
+  function updateSysEfficiency(b){
+    var region = document.getElementById("region-select").value;
+    var box = document.getElementById("sys-eff-box");
+    var avg10 = region ? regionAvg10(region) : null;
+    if(!avg10){ box.style.display = "none"; return; }
     box.style.display = "block";
-    var data = REGION_INSOLATION[region];
-    var avg10 = data.reduce(function(a,v){return a+v;},0)/data.length;
-    document.getElementById("region-avg10").innerHTML = fmt(avg10,2) + " <small>kWh/m²/일</small>";
-    renderRegionChart(data);
+    var eff = avg10>0 ? (b.params.genHours/avg10*100) : 0;
+    document.getElementById("val-sysEff").innerHTML = fmt(eff,1) + ' <small>%</small>';
+    document.getElementById("sys-eff-detail").textContent =
+      fmt(b.params.genHours,2)+" 시간/일 ÷ "+region+" 10년평균 "+fmt(avg10,2)+" kWh/m²/일";
   }
 
   document.getElementById("region-select").addEventListener("change", renderRegionResult);
@@ -1346,6 +1376,7 @@
       fmt(theoreticalPerDay(b), 1) + " <small>kWh/day</small>";
     document.getElementById("live-yearly").innerHTML =
       fmt(theoreticalPerYear(b), 0) + " <small>kWh/년</small>";
+    updateSysEfficiency(b);
   }
 
   function setKpiSub(el, text){
