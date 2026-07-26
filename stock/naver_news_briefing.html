@@ -3,28 +3,48 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#03c75a">
+<meta name="theme-color" content="#0b3d63">
+<meta name="description" content="종목명과 기간을 입력하면 관련 뉴스를 모아 브리핑 파일로 만들어 줍니다.">
+<title>종목 뉴스 브리핑</title>
+
+<!-- ── 홈 화면 앱(PWA) 설정 ── -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="application-name" content="종목 뉴스 브리핑">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="뉴스브리핑">
-<title>종목 뉴스 브리핑 (네이버)</title>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<!-- iOS 실행 화면 (기기별) -->
+<link rel="apple-touch-startup-image" href="icons/splash/splash-393x852@3x.png"
+      media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-390x844@3x.png"
+      media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-430x932@3x.png"
+      media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-375x667@2x.png"
+      media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2)">
 <style>
   :root{
     --navy:#0b3d63; --navy2:#12547f; --accent:#ef7c1b; --naver:#03c75a;
     --ink:#1f2937; --sub:#6b7789; --line:#e3e8ec; --bg:#f4f6f8;
     --good:#127a4b; --goodbg:#e6f5ed; --bad:#c0392b; --badbg:#fdecea; --neu:#5b6b7c; --neubg:#eef1f4;
     --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-t: env(safe-area-inset-top, 0px);
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   body{
     font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',sans-serif;
     background:var(--bg); color:var(--ink); font-size:15px; line-height:1.6;
     padding-bottom:calc(78px + var(--safe-b));
+    overscroll-behavior-y:contain;         /* 앱으로 실행했을 때 당겨서 새로고침 방지 */
   }
   .wrap{max-width:600px;margin:0 auto;padding:0 14px;}
 
   header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);color:#fff;
-         padding:18px 14px 16px;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(0,0,0,.18);}
+         padding:calc(18px + var(--safe-t)) 14px 16px;   /* 상태바 영역만큼 내려서 시작 */
+         position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(0,0,0,.18);}
   header .inner{max-width:600px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;}
   header h1{font-size:18px;font-weight:700;letter-spacing:-.3px;}
   header p{font-size:12px;opacity:.82;margin-top:3px;}
@@ -133,6 +153,19 @@
   .bar button.pri{background:var(--accent);border-color:var(--accent);color:#fff;}
   .bar button b{display:block;font-size:16px;font-weight:400;}
 
+  /* ── 홈 화면 추가 안내 ── */
+  .install{display:none;align-items:center;gap:11px;background:#fff;border:1px solid var(--line);
+           border-left:4px solid var(--accent);border-radius:12px;padding:12px 12px 12px 11px;margin-top:14px;
+           box-shadow:0 1px 3px rgba(16,42,67,.06);}
+  .install img{width:42px;height:42px;border-radius:10px;flex:none;}
+  .install .txt{flex:1;min-width:0;}
+  .install .txt b{display:block;font-size:13.5px;color:var(--navy);}
+  .install .txt span{display:block;font-size:11.5px;color:var(--sub);line-height:1.5;margin-top:2px;}
+  .install .txt span i{font-style:normal;color:var(--navy2);font-weight:700;}
+  .install button{flex:none;padding:9px 13px;border:none;border-radius:9px;background:var(--accent);
+                  color:#fff;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;}
+  .install button.x{background:transparent;color:#b6c0ca;font-size:16px;padding:6px 2px 6px 6px;}
+
   footer{font-size:11px;color:#95a1ad;line-height:1.6;padding:18px 2px 8px;}
 
   .toast{position:fixed;left:50%;bottom:calc(90px + var(--safe-b));transform:translateX(-50%);
@@ -161,6 +194,17 @@
 </header>
 
 <div class="wrap">
+
+  <!-- 홈 화면 추가 안내 (앱으로 실행 중이면 자동으로 숨김) -->
+  <div class="install" id="install">
+    <img src="icons/icon-192.png" alt="앱 아이콘">
+    <div class="txt">
+      <b>휴대폰 바탕화면에 추가</b>
+      <span id="installMsg"></span>
+    </div>
+    <button id="installBtn">추가</button>
+    <button class="x" id="installX" aria-label="닫기">✕</button>
+  </div>
 
   <!-- API 설정 -->
   <div class="card setup" id="setupCard">
@@ -783,6 +827,85 @@ $('share').addEventListener('click', async ()=>{
     catch(_){ toast('공유를 지원하지 않는 브라우저입니다'); }
   }
 });
+
+/* ══════════════════════════════════════════════════════════
+   10. 홈 화면 앱(PWA) — 아이콘 실행 · 오프라인 · 설치 안내
+   ══════════════════════════════════════════════════════════ */
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  window.matchMedia('(display-mode: minimal-ui)').matches ||
+  navigator.standalone === true;
+
+/* 서비스 워커: 앱 화면을 저장해 두어 아이콘 실행 시 즉시 뜨고 오프라인에서도 열린다.
+   (file:// 로 열면 등록되지 않는다 — https 또는 localhost 필요) */
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+
+let deferredPrompt = null;
+const installBox = $('install');
+function showInstall(msg, withBtn){
+  if(isStandalone()) return;
+  try{ if(localStorage.getItem('nv_install_hide')==='1') return; }catch(_){}
+  $('installMsg').innerHTML = msg;
+  $('installBtn').style.display = withBtn ? '' : 'none';
+  installBox.style.display = 'flex';
+}
+
+/* 안드로이드 크롬 등: 브라우저가 설치를 지원하면 버튼 한 번으로 추가 */
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); deferredPrompt = e;
+  showInstall('아이콘을 눌러 앱처럼 바로 실행할 수 있습니다.', true);
+});
+$('installBtn').addEventListener('click', async ()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installBox.style.display = 'none';
+  if(outcome === 'accepted') toast('바탕화면에 추가했습니다');
+});
+$('installX').addEventListener('click', ()=>{
+  installBox.style.display = 'none';
+  try{ localStorage.setItem('nv_install_hide','1'); }catch(_){}
+});
+window.addEventListener('appinstalled', ()=>{ installBox.style.display='none'; toast('앱으로 추가되었습니다'); });
+
+/* 아이폰 사파리는 설치 버튼(beforeinstallprompt)이 없어 방법을 직접 안내 */
+(function iosGuide(){
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if(!isIOS || isStandalone()) return;
+  const inSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|Whale/.test(ua);
+  setTimeout(()=>{
+    if(installBox.style.display === 'flex') return;
+    showInstall(inSafari
+      ? '화면 아래 <i>공유 ⬆</i> → 목록을 내려 <i>홈 화면에 추가</i>'
+      : '<i>사파리</i>로 열어 <i>공유 ⬆ → 홈 화면에 추가</i>', false);
+  }, 1200);
+})();
+
+/* 주소에 조건을 담아 실행할 수 있다.
+   예) ...naver_news_briefing.html?q=삼성전자&d=7&auto=1
+       ...?q=005930&from=2026-07-01&to=2026-07-26          */
+(function applyParams(){
+  const sp = new URLSearchParams(location.search);
+  const q = sp.get('q');
+  if(q) $('q').value = q;
+  const d = parseInt(sp.get('d'), 10);
+  if(d > 0){
+    setRange(d);
+    [...$('presets').children].forEach(c=>c.classList.toggle('on', +c.dataset.d === d));
+  }
+  const f = sp.get('from'), t = sp.get('to');
+  if(f || t){
+    if(f) $('from').value = f;
+    if(t) $('to').value = t;
+    [...$('presets').children].forEach(c=>c.classList.toggle('on', c.dataset.d === '0'));
+  }
+  if(q && sp.get('auto') === '1' && endpoint()) setTimeout(()=>$('go').click(), 300);
+})();
 </script>
 </body>
 </html>
