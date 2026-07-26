@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d63">
+<meta name="description" content="구글 뉴스로 종목 관련 기사를 모아 브리핑 파일로 만들어 줍니다.">
+<title>종목 뉴스 브리핑 (구글뉴스)</title>
+
+<!-- ── 홈 화면 앱(PWA) 설정 ── -->
+<link rel="manifest" href="manifest-rss.webmanifest">
+<meta name="application-name" content="종목 뉴스 브리핑">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="뉴스브리핑G">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-393x852@3x.png"
+      media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-390x844@3x.png"
+      media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-430x932@3x.png"
+      media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3)">
+<link rel="apple-touch-startup-image" href="icons/splash/splash-375x667@2x.png"
+      media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2)">
+<style>
+  :root{
+    --navy:#0b3d63; --navy2:#12547f; --accent:#ef7c1b;
+    --ink:#1f2937; --sub:#6b7789; --line:#e3e8ec; --bg:#f4f6f8;
+    --good:#127a4b; --goodbg:#e6f5ed; --bad:#c0392b; --badbg:#fdecea; --neu:#5b6b7c; --neubg:#eef1f4;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-t: env(safe-area-inset-top, 0px);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',sans-serif;
+    background:var(--bg); color:var(--ink); font-size:15px; line-height:1.6;
+    padding-bottom:calc(78px + var(--safe-b));
+    overscroll-behavior-y:contain;         /* 앱으로 실행했을 때 당겨서 새로고침 방지 */
+  }
+  .wrap{max-width:600px;margin:0 auto;padding:0 14px;}
+
+  /* ── 헤더 ── */
+  header{
+    background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);
+    color:#fff;padding:calc(18px + var(--safe-t)) 14px 16px;  /* 상태바 영역만큼 내려서 시작 */
+    position:sticky;top:0;z-index:50;
+    box-shadow:0 2px 10px rgba(0,0,0,.18);
+  }
+  header .inner{max-width:600px;margin:0 auto;}
+  header h1{font-size:18px;font-weight:700;letter-spacing:-.3px;}
+  header p{font-size:12px;opacity:.82;margin-top:3px;}
+
+  /* ── 카드 ── */
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:14px;
+        box-shadow:0 1px 3px rgba(16,42,67,.05);}
+  .card h2{font-size:14px;color:var(--navy);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+  .card h2::before{content:'';width:3px;height:14px;background:var(--accent);border-radius:2px;}
+
+  label.lb{display:block;font-size:12.5px;font-weight:700;color:var(--sub);margin:0 0 6px;}
+  input[type=text],input[type=date],select{
+    width:100%;font-size:16px; /* 16px 미만이면 iOS에서 자동 확대됨 */
+    padding:12px;border:1px solid #d6dde4;border-radius:9px;background:#fff;color:var(--ink);
+    font-family:inherit;
+  }
+  input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(239,124,27,.14);}
+
+  .ac-box{position:relative;}
+  .ac-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--line);
+           border-radius:10px;box-shadow:0 8px 22px rgba(16,42,67,.16);z-index:40;overflow:hidden;display:none;}
+  .ac-list div{padding:11px 13px;font-size:14.5px;border-bottom:1px solid #f2f5f7;display:flex;justify-content:space-between;gap:8px;}
+  .ac-list div:last-child{border-bottom:none;}
+  .ac-list div:active{background:#fef3e7;}
+  .ac-list .cd{color:var(--sub);font-size:12.5px;font-variant-numeric:tabular-nums;}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px;}
+  .chip{padding:8px 13px;border:1px solid #d6dde4;border-radius:999px;background:#fff;font-size:13px;
+        color:var(--sub);cursor:pointer;font-family:inherit;}
+  .chip.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700;}
+  .chip.recent{background:#f7f9fb;}
+
+  .row2{display:grid;grid-template-columns:1fr 14px 1fr;align-items:center;gap:0;margin-top:9px;}
+  .row2 .dash{text-align:center;color:var(--sub);}
+
+  .btn{width:100%;padding:15px;border:none;border-radius:11px;background:var(--accent);color:#fff;
+       font-size:16px;font-weight:700;font-family:inherit;margin-top:14px;cursor:pointer;}
+  .btn:disabled{background:#c9d1d9;}
+  .btn.sec{background:#fff;color:var(--navy);border:1px solid #d6dde4;font-size:14px;padding:12px;margin-top:8px;}
+
+  details.adv{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px;}
+  details.adv summary{font-size:12.5px;color:var(--sub);cursor:pointer;list-style:none;}
+  details.adv summary::-webkit-details-marker{display:none;}
+  details.adv summary::before{content:'⚙ ';}
+  .opt{display:flex;align-items:center;gap:9px;margin-top:11px;font-size:13.5px;color:var(--sub);}
+  .opt input[type=checkbox]{width:19px;height:19px;accent-color:var(--accent);flex:none;}
+  .hint{font-size:11.5px;color:#8a97a3;line-height:1.55;margin-top:7px;}
+
+  /* ── 상태 ── */
+  #status{margin-top:14px;display:none;}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;font-size:13.5px;color:var(--sub);}
+  .stat.err{background:#fdecea;border-color:#f5c6c2;color:#a33027;text-align:left;}
+  .spin{width:22px;height:22px;border:3px solid #e6ebf0;border-top-color:var(--accent);border-radius:50%;
+        margin:0 auto 9px;animation:sp .8s linear infinite;}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  /* ── 브리핑 본문 ── */
+  #brief{display:none;}
+  .bhead{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);color:#fff;border-radius:12px;
+         padding:16px;margin-top:14px;}
+  .bhead .nm{font-size:21px;font-weight:700;letter-spacing:-.4px;}
+  .bhead .cd{font-size:13px;opacity:.85;margin-top:2px;font-variant-numeric:tabular-nums;}
+  .bhead .mt{font-size:12px;opacity:.8;margin-top:9px;border-top:1px solid rgba(255,255,255,.22);padding-top:9px;}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:12px;}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 5px;text-align:center;}
+  .kpi b{display:block;font-size:20px;line-height:1.25;font-variant-numeric:tabular-nums;}
+  .kpi span{font-size:11px;color:var(--sub);}
+  .kpi.g b{color:var(--good);} .kpi.b b{color:var(--bad);} .kpi.n b{color:var(--neu);}
+
+  .tag{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;line-height:1.7;}
+  .t-good{background:var(--goodbg);color:var(--good);} .t-bad{background:var(--badbg);color:var(--bad);}
+  .t-neu{background:var(--neubg);color:var(--neu);}
+  .t-cat{background:#e8f0f7;color:var(--navy2);}
+
+  .kw{display:flex;flex-wrap:wrap;gap:6px;}
+  .kw span{background:#f4f7fa;border:1px solid var(--line);border-radius:7px;padding:5px 9px;font-size:12.5px;color:var(--navy2);}
+  .kw span i{font-style:normal;color:var(--accent);font-weight:700;margin-left:4px;}
+
+  .daybar{display:flex;align-items:flex-end;gap:4px;height:78px;margin-top:4px;
+          overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+  .daybar div{flex:1 0 26px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;}
+  .daybar i{display:block;width:100%;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px;}
+  .daybar em{font-style:normal;font-size:9.5px;color:var(--sub);white-space:nowrap;}
+  .daybar b{font-size:10px;color:var(--ink);font-weight:600;}
+
+  .arts{list-style:none;}
+  .art{padding:12px 0;border-bottom:1px solid #f0f3f6;}
+  .art:last-child{border-bottom:none;}
+  .art a{color:var(--ink);text-decoration:none;font-size:14.5px;font-weight:600;line-height:1.5;display:block;}
+  .art a:active{color:var(--accent);}
+  .art .meta{font-size:11.5px;color:var(--sub);margin-top:5px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+  .daygrp{font-size:12.5px;font-weight:700;color:var(--navy);background:#eef3f7;border-radius:6px;
+          padding:5px 9px;margin:14px 0 2px;}
+  .daygrp:first-child{margin-top:0;}
+
+  /* ── 하단 액션바 ── */
+  .bar{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);
+       border-top:1px solid var(--line);padding:9px 14px calc(9px + var(--safe-b));z-index:60;display:none;}
+  .bar .inner{max-width:600px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+  .bar button{padding:11px 3px;border:1px solid #d6dde4;border-radius:10px;background:#fff;color:var(--navy);
+              font-size:11.5px;font-family:inherit;font-weight:700;cursor:pointer;line-height:1.35;}
+  .bar button.pri{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .bar button b{display:block;font-size:16px;font-weight:400;}
+
+  /* ── 홈 화면 추가 안내 ── */
+  .install{display:none;align-items:center;gap:11px;background:#fff;border:1px solid var(--line);
+           border-left:4px solid var(--accent);border-radius:12px;padding:12px 12px 12px 11px;margin-top:14px;
+           box-shadow:0 1px 3px rgba(16,42,67,.06);}
+  .install img{width:42px;height:42px;border-radius:10px;flex:none;}
+  .install .txt{flex:1;min-width:0;}
+  .install .txt b{display:block;font-size:13.5px;color:var(--navy);}
+  .install .txt span{display:block;font-size:11.5px;color:var(--sub);line-height:1.5;margin-top:2px;}
+  .install .txt span i{font-style:normal;color:var(--navy2);font-weight:700;}
+  .install button{flex:none;padding:9px 13px;border:none;border-radius:9px;background:var(--accent);
+                  color:#fff;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;}
+  .install button.x{background:transparent;color:#b6c0ca;font-size:16px;padding:6px 2px 6px 6px;}
+
+  footer{font-size:11px;color:#95a1ad;line-height:1.6;padding:18px 2px 8px;}
+
+  .toast{position:fixed;left:50%;bottom:calc(90px + var(--safe-b));transform:translateX(-50%);
+         background:rgba(31,41,55,.94);color:#fff;padding:11px 18px;border-radius:22px;font-size:13px;
+         z-index:100;opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap;max-width:90vw;}
+  .toast.on{opacity:1;}
+
+  @media print{
+    header,.card,.bar,footer,#status{display:none!important;}
+    body{background:#fff;padding:0;}
+    .bhead{background:var(--navy)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .art a{color:#000;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <h1>📊 종목 뉴스 브리핑</h1>
+    <p>종목명과 기간을 입력하면 관련 기사를 모아 브리핑 파일로 만듭니다.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- 홈 화면 추가 안내 (앱으로 실행 중이면 자동으로 숨김) -->
+  <div class="install" id="install">
+    <img src="icons/icon-192.png" alt="앱 아이콘">
+    <div class="txt">
+      <b>휴대폰 바탕화면에 추가</b>
+      <span id="installMsg"></span>
+    </div>
+    <button id="installBtn">추가</button>
+    <button class="x" id="installX" aria-label="닫기">✕</button>
+  </div>
+
+  <!-- 검색 카드 -->
+  <div class="card" id="formCard">
+    <h2>검색 조건</h2>
+
+    <label class="lb" for="q">종목명 또는 종목코드</label>
+    <div class="ac-box">
+      <input type="text" id="q" placeholder="예: 삼성전자 / 005930" autocomplete="off"
+             autocapitalize="off" spellcheck="false" enterkeyhint="search">
+      <div class="ac-list" id="ac"></div>
+    </div>
+    <div class="chips" id="recent" style="margin-top:9px;"></div>
+
+    <label class="lb" style="margin-top:16px;">검색 기간</label>
+    <div class="chips" id="presets">
+      <button class="chip" data-d="1">오늘</button>
+      <button class="chip" data-d="3">3일</button>
+      <button class="chip on" data-d="7">1주일</button>
+      <button class="chip" data-d="30">1개월</button>
+      <button class="chip" data-d="90">3개월</button>
+      <button class="chip" data-d="0">직접 지정</button>
+    </div>
+    <div class="row2">
+      <input type="date" id="from"><span class="dash">~</span><input type="date" id="to">
+    </div>
+
+    <details class="adv">
+      <summary>고급 설정</summary>
+      <div class="opt">
+        <input type="checkbox" id="expand" checked>
+        <label for="expand">관련 키워드 확장 검색 (실적·공시·수주·목표주가 등)</label>
+      </div>
+      <div class="opt">
+        <input type="checkbox" id="dedup" checked>
+        <label for="dedup">중복·전재 기사 제거</label>
+      </div>
+      <label class="lb" style="margin-top:13px;">최대 수집 건수</label>
+      <select id="limit">
+        <option value="30">30건</option>
+        <option value="50" selected>50건</option>
+        <option value="80">80건</option>
+        <option value="150">150건</option>
+      </select>
+      <label class="lb" style="margin-top:13px;">사용자 지정 프록시 (선택)</label>
+      <input type="text" id="proxy" placeholder="https://내프록시/?url=" autocomplete="off" spellcheck="false">
+      <p class="hint">
+        휴대폰 브라우저는 뉴스 서버를 직접 호출할 수 없어(CORS 정책) 공개 중계 서버를 경유합니다.
+        기본 중계 서버 3곳을 순서대로 시도하며, 모두 막히면 위 칸에 직접 운영하는 프록시 주소를 넣으세요.
+      </p>
+    </details>
+
+    <button class="btn" id="go">뉴스 수집 &amp; 브리핑 만들기</button>
+  </div>
+
+  <!-- 상태 -->
+  <div id="status"></div>
+
+  <!-- 브리핑 결과 -->
+  <div id="brief"></div>
+
+  <footer>
+    본 자료는 공개된 뉴스 검색 결과를 자동으로 수집·분류한 참고용 요약이며, 투자 판단의 근거로 사용할 수 없습니다.
+    호재/악재 표시는 제목 키워드 기반의 기계적 판정으로 실제 내용과 다를 수 있으니 반드시 원문을 확인하세요.
+    기사 저작권은 각 언론사에 있으며 본 도구는 제목·링크·발행시각만 보관합니다.
+  </footer>
+</div>
+
+<!-- 하단 액션바 -->
+<div class="bar" id="bar">
+  <div class="inner">
+    <button class="pri" id="dlHtml"><b>💾</b>브리핑<br>저장</button>
+    <button id="dlTxt"><b>📄</b>텍스트<br>저장</button>
+    <button id="share"><b>📤</b>공유</button>
+    <button id="print"><b>🖨</b>인쇄<br>PDF</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   1. 종목 마스터 (자동완성 편의용 · 목록에 없는 종목명도 그대로 검색됨)
+   ══════════════════════════════════════════════════════════ */
+const STOCKS = [
+["삼성전자","005930"],["SK하이닉스","000660"],["LG에너지솔루션","373220"],["삼성바이오로직스","207940"],
+["현대차","005380"],["기아","000270"],["셀트리온","068270"],["POSCO홀딩스","005490"],["NAVER","035420"],
+["카카오","035720"],["LG화학","051910"],["삼성SDI","006400"],["KB금융","105560"],["신한지주","055550"],
+["하나금융지주","086790"],["우리금융지주","316140"],["현대모비스","012330"],["두산에너빌리티","034020"],
+["한국전력","015760"],["KT&G","033780"],["KT","030200"],["SK텔레콤","017670"],["LG유플러스","032640"],
+["삼성전기","009150"],["HMM","011200"],["고려아연","010130"],["LG이노텍","011070"],["삼성에스디에스","018260"],
+["포스코퓨처엠","003670"],["에코프로비엠","247540"],["에코프로","086520"],["삼성화재","000810"],
+["삼성생명","032830"],["에스오일","010950"],["SK이노베이션","096770"],["LG생활건강","051900"],
+["아모레퍼시픽","090430"],["CJ제일제당","097950"],["오리온","271560"],["삼성물산","028260"],
+["현대건설","000720"],["대우건설","047040"],["GS건설","006360"],["한화오션","042660"],
+["HD한국조선해양","009540"],["삼성중공업","010140"],["HD현대중공업","329180"],["한화에어로스페이스","012450"],
+["한국항공우주","047810"],["LIG넥스원","079550"],["현대로템","064350"],["대한항공","003490"],
+["강원랜드","035250"],["롯데쇼핑","023530"],["현대백화점","069960"],["신세계","004170"],["이마트","139480"],
+["BGF리테일","282330"],["한국타이어앤테크놀로지","161390"],["HD현대","267250"],["SK","034730"],["LG","003550"],
+["CJ","001040"],["유한양행","000100"],["한미약품","128940"],["SK바이오사이언스","302440"],
+["SK바이오팜","326030"],["알테오젠","196170"],["에스엠","041510"],["JYP Ent.","035900"],
+["와이지엔터테인먼트","122870"],["하이브","352820"],["넷마블","251270"],["엔씨소프트","036570"],
+["크래프톤","259960"],["카카오게임즈","293490"],["위메이드","112040"],["펄어비스","263750"],
+["한미반도체","042700"],["DB하이텍","000990"],["LX세미콘","108320"],["엘앤에프","066970"],
+["GC녹십자","006280"],["종근당","185750"],["대웅제약","069620"],["한화솔루션","009830"],
+["두산퓨얼셀","336260"],["씨에스윈드","112610"],["휴젤","145020"],["HL만도","204320"],
+["한국콜마","161890"],["현대해상","001450"],["DB손해보험","005830"],["LG디스플레이","034220"],
+["OCI홀딩스","010060"],["KCC","002380"],["롯데지주","004990"],["롯데케미칼","011170"],
+["SK케미칼","285130"],["SKC","011790"],["포스코DX","022100"],["현대글로비스","086280"],
+["기업은행","024110"],["메리츠금융지주","138040"],["한국금융지주","071050"],["미래에셋증권","006800"],
+["삼성증권","016360"],["NH투자증권","005940"],["키움증권","039490"],["한화","000880"],
+["효성중공업","298040"],["LS ELECTRIC","010120"],["LS","006260"],["대한전선","001440"],
+["일진전기","103590"],["제주항공","089590"],["티웨이항공","091810"],["진에어","272450"],
+["호텔신라","008770"],["CJ대한통운","000120"],["팬오션","028670"],["대한해운","005880"]
+];
+
+/* ══════════════════════════════════════════════════════════
+   2. 분류 사전
+   ══════════════════════════════════════════════════════════ */
+const CATS = [
+  ["실적",       ["실적","영업이익","순이익","매출","어닝","적자","흑자","컨센서스","분기","가이던스","호실적","어닝쇼크","어닝서프라이즈"]],
+  ["공시·지배구조",["공시","유상증자","무상증자","자사주","배당","합병","분할","지분","주주총회","최대주주","전환사채","블록딜","상장폐지","액면"]],
+  ["수주·계약",   ["수주","계약","공급","납품","체결","입찰","낙찰","협약","MOU","파트너십","양산"]],
+  ["신사업·투자", ["투자","증설","공장","신사업","진출","인수","설립","R&D","개발","특허","출시","신제품","양산라인","생산능력"]],
+  ["증권가·목표주가",["목표주가","투자의견","리포트","상향","하향","매수","중립","커버리지","증권"]],
+  ["정책·규제",   ["정부","정책","규제","법안","제도","관세","보조금","인허가","국회","과징금","공정위","금감원"]],
+  ["시황·수급",   ["주가","급등","급락","상한가","하한가","외국인","기관","순매수","순매도","공매도","52주","신고가","시가총액","코스피","코스닥","특징주"]],
+  ["리스크·소송", ["소송","고발","기소","조사","리콜","사고","화재","파업","제재","분쟁","횡령","배임","하락 위험"]]
+];
+const POS = ["급등","상승","호실적","최대","신고가","수주","계약","체결","흑자","성장","상향","돌파","기대","확대","호재","증가","개선","순매수","어닝서프라이즈","목표주가 상향","사상 최대","수혜","공급","선정","낙찰","특허","승인","출시","반등","강세","훈풍"];
+const NEG = ["급락","하락","적자","부진","쇼크","리콜","소송","제재","하향","축소","우려","리스크","악재","감소","위기","파업","화재","사고","횡령","배임","공매도","순매도","신저가","약세","경고","철회","무산","지연","연기","불성실"];
+const STOP = new Set(["특징주","오늘","관련주","및","등","위해","대한","가장","이번","지난","올해","내년","작년","기업","회사","시장","전망","분석","기록","돌파","공개","발표","계획","예정","최근","현재","경우","가능","추진","확인","진행","종목","주가","증권가","코스피","코스닥"]);
+
+/* ══════════════════════════════════════════════════════════
+   3. 유틸
+   ══════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const ymd = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const DOW = ['일','월','화','수','목','금','토'];
+
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('on'), 2200);
+}
+function setStatus(html, isErr){
+  const s = $('status');
+  if(!html){ s.style.display='none'; s.innerHTML=''; return; }
+  s.style.display='block';
+  s.innerHTML = '<div class="stat'+(isErr?' err':'')+'">'+html+'</div>';
+}
+
+/* ══════════════════════════════════════════════════════════
+   4. 입력 UI (자동완성 · 기간 · 최근검색)
+   ══════════════════════════════════════════════════════════ */
+function setRange(days){
+  const to = new Date(); const from = new Date();
+  from.setDate(to.getDate() - (days-1));
+  $('from').value = ymd(from); $('to').value = ymd(to);
+}
+$('presets').addEventListener('click', e=>{
+  const b = e.target.closest('.chip'); if(!b) return;
+  [...$('presets').children].forEach(c=>c.classList.remove('on'));
+  b.classList.add('on');
+  const d = +b.dataset.d;
+  if(d>0) setRange(d); else $('from').focus();
+});
+['from','to'].forEach(id => $(id).addEventListener('change', ()=>{
+  [...$('presets').children].forEach(c=>c.classList.toggle('on', c.dataset.d==='0'));
+}));
+
+const ac = $('ac');
+$('q').addEventListener('input', ()=>{
+  const v = $('q').value.trim().toLowerCase();
+  if(!v){ ac.style.display='none'; return; }
+  const hit = STOCKS.filter(s => s[0].toLowerCase().includes(v) || s[1].startsWith(v)).slice(0,6);
+  if(!hit.length){ ac.style.display='none'; return; }
+  ac.innerHTML = hit.map(s=>'<div data-n="'+esc(s[0])+'"><span>'+esc(s[0])+'</span><span class="cd">'+s[1]+'</span></div>').join('');
+  ac.style.display='block';
+});
+ac.addEventListener('click', e=>{
+  const d = e.target.closest('div[data-n]'); if(!d) return;
+  $('q').value = d.dataset.n; ac.style.display='none';
+});
+document.addEventListener('click', e=>{ if(!e.target.closest('.ac-box')) ac.style.display='none'; });
+$('q').addEventListener('keydown', e=>{ if(e.key==='Enter'){ ac.style.display='none'; $('go').click(); } });
+
+function loadRecent(){
+  let r = [];
+  try{ r = JSON.parse(localStorage.getItem('sb_recent')||'[]'); }catch(_){}
+  $('recent').innerHTML = r.slice(0,5).map(n=>'<button class="chip recent">'+esc(n)+'</button>').join('');
+}
+function saveRecent(n){
+  let r = [];
+  try{ r = JSON.parse(localStorage.getItem('sb_recent')||'[]'); }catch(_){}
+  r = [n, ...r.filter(x=>x!==n)].slice(0,5);
+  try{ localStorage.setItem('sb_recent', JSON.stringify(r)); }catch(_){}
+  loadRecent();
+}
+$('recent').addEventListener('click', e=>{
+  const b = e.target.closest('.chip'); if(!b) return;
+  $('q').value = b.textContent; $('go').click();
+});
+
+try{ $('proxy').value = localStorage.getItem('sb_proxy')||''; }catch(_){}
+$('proxy').addEventListener('change', ()=>{ try{ localStorage.setItem('sb_proxy', $('proxy').value.trim()); }catch(_){} });
+
+setRange(7); loadRecent();
+
+/* ══════════════════════════════════════════════════════════
+   5. 수집 (구글 뉴스 RSS + CORS 중계 폴백)
+   ══════════════════════════════════════════════════════════ */
+const PROXIES = [
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u),
+  u => 'https://corsproxy.io/?url=' + encodeURIComponent(u)
+];
+function proxyList(){
+  const custom = $('proxy').value.trim();
+  const list = PROXIES.slice();
+  if(custom) list.unshift(u => custom + encodeURIComponent(u));
+  return list;
+}
+async function fetchText(url){
+  let lastErr;
+  for(const mk of proxyList()){
+    const ctl = new AbortController();
+    const timer = setTimeout(()=>ctl.abort(), 20000);
+    try{
+      const r = await fetch(mk(url), {signal:ctl.signal});
+      clearTimeout(timer);
+      if(!r.ok){ lastErr = new Error('HTTP '+r.status); continue; }
+      const t = await r.text();
+      if(t && t.indexOf('<item') !== -1) return t;
+      lastErr = new Error('빈 응답');
+    }catch(err){ clearTimeout(timer); lastErr = err; }
+  }
+  throw lastErr || new Error('수집 실패');
+}
+function rssUrl(query, from, to){
+  const end = new Date(to); end.setDate(end.getDate()+1);   // before 는 해당일 미포함
+  const q = query + ' after:' + from + ' before:' + ymd(end);
+  return 'https://news.google.com/rss/search?q=' + encodeURIComponent(q) + '&hl=ko&gl=KR&ceid=KR%3Ako';
+}
+function parseRss(xml){
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  return [...doc.querySelectorAll('item')].map(it=>{
+    const g = t => (it.querySelector(t)||{}).textContent || '';
+    let title = g('title').trim(), press = g('source').trim();
+    const m = title.match(/^(.*)\s+-\s+([^-]+)$/);
+    if(m){ title = m[1].trim(); if(!press) press = m[2].trim(); }
+    return { title, press: press||'출처 미상', link: g('link').trim(), date: new Date(g('pubDate')) };
+  }).filter(a => a.title && !isNaN(a.date));
+}
+
+/* ══════════════════════════════════════════════════════════
+   6. 가공 (중복 제거 · 분류 · 키워드)
+   ══════════════════════════════════════════════════════════ */
+const normTitle = t => t.replace(/[\[\]()<>·“”"'‘’,.\-—…!?%\s]/g,'').toLowerCase();
+
+function dedupe(arts){
+  const seen = new Set(), out = [];
+  for(const a of arts){
+    const k = normTitle(a.title);
+    if(!k || seen.has(k)) continue;
+    let dup = false;
+    for(const s of seen){                       // 전재 기사: 앞 18자 동일하면 중복 처리
+      if(k.length>18 && s.length>18 && k.slice(0,18)===s.slice(0,18)){ dup=true; break; }
+    }
+    if(dup) continue;
+    seen.add(k); out.push(a);
+  }
+  return out;
+}
+function classify(title){
+  let cat = '기타';
+  for(const [name, kws] of CATS){ if(kws.some(k=>title.includes(k))){ cat = name; break; } }
+  const p = POS.filter(k=>title.includes(k)).length;
+  const n = NEG.filter(k=>title.includes(k)).length;
+  return { cat, tone: p>n ? 'good' : n>p ? 'bad' : 'neu' };
+}
+function topKeywords(arts, exclude){
+  const cnt = {};
+  for(const a of arts){
+    const toks = a.title.split(/[^가-힣A-Za-z0-9]+/);
+    for(let t of toks){
+      t = t.replace(/(은|는|이|가|을|를|의|에|와|과|으로|로|도|만|까지|부터|에서)$/,'');
+      if(t.length<2 || t.length>12) continue;
+      if(STOP.has(t) || exclude.includes(t) || /^\d+$/.test(t)) continue;
+      cnt[t] = (cnt[t]||0)+1;
+    }
+  }
+  return Object.entries(cnt).filter(e=>e[1]>1).sort((a,b)=>b[1]-a[1]).slice(0,10);
+}
+
+/* ══════════════════════════════════════════════════════════
+   7. 렌더링
+   ══════════════════════════════════════════════════════════ */
+let BRIEF = null;
+
+function render(b){
+  const dayKeys = Object.keys(b.byDay).sort().reverse();
+  const maxDay = Math.max(...dayKeys.map(k=>b.byDay[k].length), 1);
+
+  const bars = dayKeys.slice().reverse().map(k=>{
+    const n = b.byDay[k].length;
+    const d = new Date(k+'T00:00:00');
+    return '<div><b>'+n+'</b><i style="height:'+Math.round(n/maxDay*46)+'px"></i>'+
+           '<em>'+(d.getMonth()+1)+'/'+d.getDate()+'</em></div>';
+  }).join('');
+
+  const catCount = {};
+  b.arts.forEach(a=>{ catCount[a.cat] = (catCount[a.cat]||0)+1; });
+  const catRows = Object.entries(catCount).sort((a,b2)=>b2[1]-a[1])
+    .map(([c,n])=>'<span class="tag t-cat" style="margin:0 5px 5px 0;">'+esc(c)+' '+n+'</span>').join('');
+
+  const list = dayKeys.map(k=>{
+    const d = new Date(k+'T00:00:00');
+    const head = '<div class="daygrp">'+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+DOW[d.getDay()]+') · '+b.byDay[k].length+'건</div>';
+    const items = b.byDay[k].map(a=>
+      '<li class="art"><a href="'+esc(a.link)+'" target="_blank" rel="noopener">'+esc(a.title)+'</a>'+
+      '<div class="meta"><span class="tag t-'+a.tone+'">'+(a.tone==='good'?'호재':a.tone==='bad'?'악재':'중립')+'</span>'+
+      '<span class="tag t-cat">'+esc(a.cat)+'</span><span>'+esc(a.press)+'</span>'+
+      '<span>'+pad(a.date.getHours())+':'+pad(a.date.getMinutes())+'</span></div></li>'
+    ).join('');
+    return head + '<ul class="arts">' + items + '</ul>';
+  }).join('');
+
+  $('brief').innerHTML =
+    '<div class="bhead"><div class="nm">'+esc(b.name)+'</div>'+
+      (b.code?'<div class="cd">'+b.code+'</div>':'')+
+      '<div class="mt">📅 '+b.from+' ~ '+b.to+' &nbsp;|&nbsp; 🕐 '+b.made+' 기준</div></div>'+
+
+    '<div class="kpis">'+
+      '<div class="kpi"><b>'+b.arts.length+'</b><span>전체</span></div>'+
+      '<div class="kpi g"><b>'+b.good+'</b><span>호재</span></div>'+
+      '<div class="kpi b"><b>'+b.bad+'</b><span>악재</span></div>'+
+      '<div class="kpi n"><b>'+b.neu+'</b><span>중립</span></div>'+
+    '</div>'+
+
+    '<div class="card"><h2>일자별 기사량</h2><div class="daybar">'+bars+'</div></div>'+
+    '<div class="card"><h2>이슈 분포</h2><div>'+catRows+'</div></div>'+
+    (b.kws.length ? '<div class="card"><h2>핵심 키워드</h2><div class="kw">'+
+      b.kws.map(([k,n])=>'<span>'+esc(k)+'<i>'+n+'</i></span>').join('')+'</div></div>' : '')+
+    '<div class="card"><h2>기사 타임라인</h2>'+list+'</div>';
+
+  $('brief').style.display='block';
+  $('bar').style.display='block';
+}
+
+/* ══════════════════════════════════════════════════════════
+   8. 실행
+   ══════════════════════════════════════════════════════════ */
+$('go').addEventListener('click', async ()=>{
+  const raw = $('q').value.trim();
+  if(!raw){ toast('종목명을 입력하세요'); $('q').focus(); return; }
+  const from = $('from').value, to = $('to').value;
+  if(!from || !to){ toast('검색 기간을 지정하세요'); return; }
+  if(from > to){ toast('시작일이 종료일보다 늦습니다'); return; }
+
+  // 종목명 ↔ 코드 해석
+  let name = raw, code = '';
+  const byCode = STOCKS.find(s=>s[1]===raw.replace(/\D/g,''));
+  const byName = STOCKS.find(s=>s[0].toLowerCase()===raw.toLowerCase());
+  if(byCode){ name = byCode[0]; code = byCode[1]; }
+  else if(byName){ name = byName[0]; code = byName[1]; }
+  else if(/^\d{6}$/.test(raw)){ code = raw; }
+
+  $('brief').style.display='none'; $('bar').style.display='none';
+  $('go').disabled = true;
+  setStatus('<div class="spin"></div>'+esc(name)+' 뉴스를 수집하는 중…');
+
+  try{
+    const queries = ['"'+name+'"'];
+    if($('expand').checked)
+      queries.push('"'+name+'" (실적 OR 공시 OR 수주 OR 계약 OR 목표주가 OR 투자 OR 신제품)');
+
+    let arts = [];
+    for(let i=0;i<queries.length;i++){
+      setStatus('<div class="spin"></div>뉴스를 수집하는 중… ('+(i+1)+'/'+queries.length+')');
+      try{ arts = arts.concat(parseRss(await fetchText(rssUrl(queries[i], from, to)))); }
+      catch(e){ if(i===0) throw e; }
+    }
+
+    // 기간 필터 → 중복 제거 → 정렬 → 건수 제한
+    const s = new Date(from+'T00:00:00'), e = new Date(to+'T23:59:59');
+    arts = arts.filter(a => a.date>=s && a.date<=e);
+    if($('dedup').checked) arts = dedupe(arts);
+    arts.sort((a,b)=>b.date-a.date);
+    arts = arts.slice(0, +$('limit').value);
+
+    if(!arts.length){
+      setStatus('<b>수집된 기사가 없습니다.</b><br>기간을 넓히거나 종목명을 다르게 입력해 보세요. (예: 정식 상호명 사용)', true);
+      $('go').disabled = false; return;
+    }
+
+    arts.forEach(a => Object.assign(a, classify(a.title)));
+    const byDay = {};
+    arts.forEach(a => { const k = ymd(a.date); (byDay[k] = byDay[k]||[]).push(a); });
+    const now = new Date();
+
+    BRIEF = {
+      name, code, from, to, arts, byDay,
+      made: ymd(now)+' '+pad(now.getHours())+':'+pad(now.getMinutes()),
+      good: arts.filter(a=>a.tone==='good').length,
+      bad:  arts.filter(a=>a.tone==='bad').length,
+      neu:  arts.filter(a=>a.tone==='neu').length,
+      kws:  topKeywords(arts, [name])
+    };
+
+    setStatus('');
+    render(BRIEF);
+    saveRecent(name);
+    $('brief').scrollIntoView({behavior:'smooth', block:'start'});
+  }catch(err){
+    setStatus('<b>뉴스를 가져오지 못했습니다.</b><br>사유: '+esc(err.message||err)+
+      '<br><br>중계 서버가 일시적으로 막혔을 수 있습니다. 잠시 후 다시 시도하거나, ' +
+      '[고급 설정 → 사용자 지정 프록시]에 직접 운영하는 주소를 입력하세요.', true);
+  }finally{
+    $('go').disabled = false;
+  }
+});
+
+/* ══════════════════════════════════════════════════════════
+   9. 브리핑 파일 만들기 (HTML / 텍스트 / 공유 / 인쇄)
+   ══════════════════════════════════════════════════════════ */
+function fileBase(){
+  return (BRIEF.name.replace(/[\\/:*?"<>|\s]/g,'_')) + '_뉴스브리핑_' + BRIEF.from + '_' + BRIEF.to;
+}
+function briefHtml(){
+  const css = `body{font-family:-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;max-width:820px;margin:0 auto;padding:24px 18px;color:#1f2937;background:#fff;line-height:1.6;font-size:14px}
+h1{font-size:22px;color:#0b3d63;border-bottom:3px solid #ef7c1b;padding-bottom:10px;margin-bottom:6px}
+.sub{color:#6b7789;font-size:12.5px;margin-bottom:20px}
+h2{font-size:15px;color:#0b3d63;margin:26px 0 10px;padding-left:9px;border-left:3px solid #ef7c1b}
+table{border-collapse:collapse;width:100%;font-size:13px;margin-bottom:8px}
+th,td{border:1px solid #e3e8ec;padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#0b3d63;color:#fff;white-space:nowrap}
+tr:nth-child(even) td{background:#f8fafb}
+td.c{text-align:center;white-space:nowrap}
+a{color:#12547f;text-decoration:none}
+.kpi{display:inline-block;border:1px solid #e3e8ec;border-radius:8px;padding:9px 16px;margin:0 7px 7px 0;text-align:center;min-width:78px}
+.kpi b{display:block;font-size:19px}
+.g{color:#127a4b}.b{color:#c0392b}.n{color:#5b6b7c}
+.kw span{display:inline-block;background:#f4f7fa;border:1px solid #e3e8ec;border-radius:6px;padding:4px 9px;margin:0 5px 5px 0;font-size:12.5px}
+.note{font-size:11.5px;color:#95a1ad;border-top:1px solid #e3e8ec;margin-top:26px;padding-top:12px;line-height:1.6}
+@media(max-width:520px){body{padding:16px 12px}th,td{padding:6px 7px;font-size:12.5px}.kpi{min-width:62px;padding:8px 10px}}
+@media print{a{color:#000}.note{page-break-inside:avoid}}`;
+
+  const rows = BRIEF.arts.map(a=>{
+    const d = a.date;
+    return '<tr><td class="c">'+(d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes())+'</td>'+
+           '<td class="c '+(a.tone==='good'?'g':a.tone==='bad'?'b':'n')+'">'+
+             (a.tone==='good'?'호재':a.tone==='bad'?'악재':'중립')+'</td>'+
+           '<td class="c">'+esc(a.cat)+'</td>'+
+           '<td><a href="'+esc(a.link)+'">'+esc(a.title)+'</a><br><span style="color:#8a97a3;font-size:11.5px">'+esc(a.press)+'</span></td></tr>';
+  }).join('');
+
+  const cat = {}; BRIEF.arts.forEach(a=>cat[a.cat]=(cat[a.cat]||0)+1);
+
+  return '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">'+
+    '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+    '<title>'+esc(BRIEF.name)+' 뉴스 브리핑</title><style>'+css+'</style></head><body>'+
+    '<h1>'+esc(BRIEF.name)+(BRIEF.code?' ('+BRIEF.code+')':'')+' 뉴스 브리핑</h1>'+
+    '<div class="sub">분석기간 '+BRIEF.from+' ~ '+BRIEF.to+' &nbsp;|&nbsp; 작성 '+BRIEF.made+
+      ' &nbsp;|&nbsp; 수집 '+BRIEF.arts.length+'건</div>'+
+    '<h2>요약</h2><div>'+
+      '<div class="kpi"><b>'+BRIEF.arts.length+'</b>전체</div>'+
+      '<div class="kpi"><b class="g">'+BRIEF.good+'</b>호재</div>'+
+      '<div class="kpi"><b class="b">'+BRIEF.bad+'</b>악재</div>'+
+      '<div class="kpi"><b class="n">'+BRIEF.neu+'</b>중립</div></div>'+
+    '<h2>이슈 분포</h2><div class="kw">'+
+      Object.entries(cat).sort((a,b)=>b[1]-a[1]).map(([c,n])=>'<span>'+esc(c)+' '+n+'건</span>').join('')+'</div>'+
+    (BRIEF.kws.length?'<h2>핵심 키워드</h2><div class="kw">'+
+      BRIEF.kws.map(([k,n])=>'<span>'+esc(k)+' ('+n+')</span>').join('')+'</div>':'')+
+    '<h2>기사 목록</h2><table><thead><tr><th>일시</th><th>톤</th><th>분류</th><th>제목 / 언론사</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table>'+
+    '<div class="note">본 자료는 공개 뉴스 검색 결과를 자동 수집·분류한 참고용 요약이며 투자 판단의 근거로 사용할 수 없습니다. '+
+    '호재/악재는 제목 키워드 기반 기계 판정으로 실제 내용과 다를 수 있습니다. 기사 저작권은 각 언론사에 있습니다.</div>'+
+    '</body></html>';
+}
+function briefText(){
+  let s = '■ '+BRIEF.name+(BRIEF.code?' ('+BRIEF.code+')':'')+' 뉴스 브리핑\n';
+  s += '· 기간: '+BRIEF.from+' ~ '+BRIEF.to+'\n· 작성: '+BRIEF.made+'\n';
+  s += '· 수집: 총 '+BRIEF.arts.length+'건 (호재 '+BRIEF.good+' / 악재 '+BRIEF.bad+' / 중립 '+BRIEF.neu+')\n';
+  if(BRIEF.kws.length) s += '· 키워드: '+BRIEF.kws.map(k=>k[0]+'('+k[1]+')').join(', ')+'\n';
+  s += '\n';
+  Object.keys(BRIEF.byDay).sort().reverse().forEach(k=>{
+    const d = new Date(k+'T00:00:00');
+    s += '▶ '+k+' ('+DOW[d.getDay()]+') '+BRIEF.byDay[k].length+'건\n';
+    BRIEF.byDay[k].forEach(a=>{
+      s += '  ['+(a.tone==='good'?'호재':a.tone==='bad'?'악재':'중립')+'/'+a.cat+'] '+a.title+'\n';
+      s += '   - '+a.press+' | '+a.link+'\n';
+    });
+    s += '\n';
+  });
+  s += '※ 자동 수집·분류된 참고용 자료이며 투자 판단의 근거가 될 수 없습니다.\n';
+  return s;
+}
+function download(text, filename, mime){
+  const blob = new Blob(['﻿'+text], {type:mime+';charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+$('dlHtml').addEventListener('click', ()=>{ if(!BRIEF)return;
+  download(briefHtml(), fileBase()+'.html', 'text/html'); toast('브리핑 파일을 저장했습니다'); });
+$('dlTxt').addEventListener('click', ()=>{ if(!BRIEF)return;
+  download(briefText(), fileBase()+'.txt', 'text/plain'); toast('텍스트 파일을 저장했습니다'); });
+$('print').addEventListener('click', ()=> window.print());
+$('share').addEventListener('click', async ()=>{
+  if(!BRIEF) return;
+  const title = BRIEF.name+' 뉴스 브리핑 ('+BRIEF.from+'~'+BRIEF.to+')';
+  try{
+    const file = new File([briefHtml()], fileBase()+'.html', {type:'text/html'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title}); return;
+    }
+    if(navigator.share){ await navigator.share({title, text:briefText().slice(0,1800)}); return; }
+    await navigator.clipboard.writeText(briefText());
+    toast('클립보드에 복사했습니다');
+  }catch(err){
+    if(err && err.name === 'AbortError') return;
+    try{ await navigator.clipboard.writeText(briefText()); toast('클립보드에 복사했습니다'); }
+    catch(_){ toast('공유를 지원하지 않는 브라우저입니다'); }
+  }
+});
+
+/* ══════════════════════════════════════════════════════════
+   10. 홈 화면 앱(PWA) — 아이콘 실행 · 오프라인 · 설치 안내
+   ══════════════════════════════════════════════════════════ */
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  window.matchMedia('(display-mode: minimal-ui)').matches ||
+  navigator.standalone === true;
+
+/* 서비스 워커: 앱 화면을 저장해 두어 아이콘 실행 시 즉시 뜨고 오프라인에서도 열린다.
+   (file:// 로 열면 등록되지 않는다 — https 또는 localhost 필요) */
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+
+let deferredPrompt = null;
+const installBox = $('install');
+function showInstall(msg, withBtn){
+  if(isStandalone()) return;
+  try{ if(localStorage.getItem('sb_install_hide')==='1') return; }catch(_){}
+  $('installMsg').innerHTML = msg;
+  $('installBtn').style.display = withBtn ? '' : 'none';
+  installBox.style.display = 'flex';
+}
+
+/* 안드로이드 크롬 등: 브라우저가 설치를 지원하면 버튼 한 번으로 추가 */
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); deferredPrompt = e;
+  showInstall('아이콘을 눌러 앱처럼 바로 실행할 수 있습니다.', true);
+});
+$('installBtn').addEventListener('click', async ()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installBox.style.display = 'none';
+  if(outcome === 'accepted') toast('바탕화면에 추가했습니다');
+});
+$('installX').addEventListener('click', ()=>{
+  installBox.style.display = 'none';
+  try{ localStorage.setItem('sb_install_hide','1'); }catch(_){}
+});
+window.addEventListener('appinstalled', ()=>{ installBox.style.display='none'; toast('앱으로 추가되었습니다'); });
+
+/* 아이폰 사파리는 설치 버튼(beforeinstallprompt)이 없어 방법을 직접 안내 */
+(function iosGuide(){
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if(!isIOS || isStandalone()) return;
+  const inSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|Whale/.test(ua);
+  setTimeout(()=>{
+    if(installBox.style.display === 'flex') return;
+    showInstall(inSafari
+      ? '화면 아래 <i>공유 ⬆</i> → 목록을 내려 <i>홈 화면에 추가</i>'
+      : '<i>사파리</i>로 열어 <i>공유 ⬆ → 홈 화면에 추가</i>', false);
+  }, 1200);
+})();
+
+/* 주소에 조건을 담아 실행할 수 있다.
+   예) ...news_briefing.html?q=삼성전자&d=7&auto=1                       */
+(function applyParams(){
+  const sp = new URLSearchParams(location.search);
+  const q = sp.get('q');
+  if(q) $('q').value = q;
+  const d = parseInt(sp.get('d'), 10);
+  if(d > 0){
+    setRange(d);
+    [...$('presets').children].forEach(c=>c.classList.toggle('on', +c.dataset.d === d));
+  }
+  const f = sp.get('from'), t = sp.get('to');
+  if(f || t){
+    if(f) $('from').value = f;
+    if(t) $('to').value = t;
+    [...$('presets').children].forEach(c=>c.classList.toggle('on', c.dataset.d === '0'));
+  }
+  if(q && sp.get('auto') === '1') setTimeout(()=>$('go').click(), 300);
+})();
+</script>
+</body>
+</html>
