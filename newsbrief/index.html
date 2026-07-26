@@ -99,6 +99,9 @@
   @keyframes sp{to{transform:rotate(360deg)}}
   .prog{height:5px;background:#eef1f4;border-radius:3px;margin-top:11px;overflow:hidden;}
   .prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s;}
+  .stopbtn{margin-top:11px;padding:9px 18px;border:1px solid #d6dde4;border-radius:9px;background:#fff;
+           color:var(--bad);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;}
+  .stopbtn.sm{margin:6px 0 0;padding:5px 12px;font-size:11.5px;}
 
   #brief{display:none;}
   .bhead{background:linear-gradient(135deg,#0b3d63 0%,#12547f 100%);color:#fff;border-radius:12px;
@@ -401,12 +404,17 @@ function toast(msg){
   const t=$('toast'); t.textContent=msg; t.classList.add('on');
   clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),2400);
 }
-function setStatus(html,isErr,pct){
+function setStatus(html,isErr,pct,canStop){
   const s=$('status');
   if(!html){ s.style.display='none'; s.innerHTML=''; return; }
   s.style.display='block';
   s.innerHTML='<div class="stat'+(isErr?' err':'')+'">'+html+
-    (pct!=null?'<div class="prog"><i style="width:'+pct+'%"></i></div>':'')+'</div>';
+    (pct!=null?'<div class="prog"><i style="width:'+pct+'%"></i></div>':'')+
+    (canStop?'<button class="stopbtn" id="stopBtn">■ 중지</button>':'')+'</div>';
+  if(canStop) $('stopBtn').onclick = ()=>{
+    cancelRun();
+    setStatus('수집을 중지했습니다. 종목을 바꿔 다시 검색하세요.');
+  };
 }
 const PRESS = {
 "yna.co.kr":"연합뉴스","yonhapnews.co.kr":"연합뉴스","news1.kr":"뉴스1","newsis.com":"뉴시스",
@@ -441,22 +449,52 @@ const PROXIES = [
   u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
   u => 'https://thingproxy.freeboard.io/fetch/' + u
 ];
-async function grab(url, {timeout=20000, binary=false, want=null} = {}){
-  let lastErr;
-  for(const mk of PROXIES){
-    const ctl = new AbortController();
-    const t = setTimeout(()=>ctl.abort(), timeout);
-    try{
-      const r = await fetch(mk(url), {signal:ctl.signal});
-      clearTimeout(t);
-      if(!r.ok){ lastErr=new Error('HTTP '+r.status); continue; }
-      if(binary) return await r.arrayBuffer();
-      const txt = await r.text();
-      if(!txt || (want && txt.indexOf(want)===-1)){ lastErr=new Error('예상과 다른 응답'); continue; }
-      return txt;
-    }catch(e){ clearTimeout(t); lastErr=e; }
-  }
-  throw lastErr || new Error('가져오기 실패');
+/* 중계를 하나씩 차례로 기다리면 앞의 것이 막혔을 때 그 시간을 고스란히 버린다.
+   먼저 한 곳에 요청하고, hedge(ms) 안에 답이 없으면 다음 곳에도 동시에 요청해
+   가장 먼저 도착한 정상 응답을 쓴다. 실패하면 즉시 다음 곳을 투입한다. */
+/* 진행 중인 모든 요청을 즉시 끊기 위한 등록소 — '중지'와 '다른 종목 재검색'에 쓴다 */
+const inflight = new Set();
+function abortAll(){
+  for(const c of inflight){ try{ c.abort(); }catch(_){} }
+  inflight.clear();
+}
+
+function grab(url, {timeout=15000, binary=false, want=null, hedge=1500, max=PROXIES.length} = {}){
+  const list = PROXIES.slice(0, max);
+  return new Promise((resolve, reject) => {
+    const ctls = [];
+    let launched = 0, failed = 0, settled = false, lastErr = null;
+    const done = () => { ctls.forEach(c=>inflight.delete(c)); };
+
+    const launch = () => {
+      if(settled || launched >= list.length) return;
+      const mk = list[launched++];
+      const ctl = new AbortController(); ctls.push(ctl); inflight.add(ctl);
+      const t = setTimeout(()=>ctl.abort(), timeout);
+
+      fetch(mk(url), {signal:ctl.signal}).then(async r=>{
+        clearTimeout(t);
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        const data = binary ? await r.arrayBuffer() : await r.text();
+        if(binary){ if(!data || data.byteLength < 100) throw new Error('빈 응답'); }
+        else if(!data || (want && data.indexOf(want)===-1)) throw new Error('예상과 다른 응답');
+        if(settled) return;
+        settled = true;
+        ctls.forEach(c=>{ try{ c.abort(); }catch(_){} });
+        done();
+        resolve(data);
+      }).catch(e=>{
+        clearTimeout(t);
+        if(settled) return;
+        lastErr = e;
+        if(++failed >= list.length){ done(); reject(lastErr || new Error('가져오기 실패')); }
+        else launch();                       // 실패하면 기다리지 않고 다음 중계로
+      });
+
+      if(launched < list.length) setTimeout(launch, hedge);   // 느리면 다음 중계도 동시 투입
+    };
+    launch();
+  });
 }
 
 /* ── 구글 뉴스 RSS ── */
@@ -484,49 +522,67 @@ function decodeEucKr(buf){
   try{ return new TextDecoder('euc-kr').decode(buf); }
   catch(_){ return new TextDecoder('utf-8').decode(buf); }
 }
-async function naverFinanceNews(code, pages){
+function parseNaverRows(html){
+  const doc = new DOMParser().parseFromString(html,'text/html');
+  const items = [];
+  for(const tr of doc.querySelectorAll('tr')){
+    const a = tr.querySelector('td.title a, .title a');
+    if(!a) continue;
+    const title = clean(a.textContent);
+    const info  = clean((tr.querySelector('td.info, .info')||{}).textContent||'');
+    const dateS = clean((tr.querySelector('td.date, .date')||{}).textContent||'');
+    const href  = a.getAttribute('href') || '';
+    const oid = (href.match(/office_id=(\d+)/)||[])[1];
+    const aid = (href.match(/article_id=(\d+)/)||[])[1];
+    const link = (oid && aid) ? 'https://n.news.naver.com/mnews/article/'+oid+'/'+aid
+                              : new URL(href, 'https://finance.naver.com/item/').href;
+    const dm = dateS.match(/(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})/);   // 2026.07.26 09:30
+    if(!title || !dm) continue;
+    items.push({ title, press: info || '네이버뉴스', link, summary:'', src:'네이버',
+                 date: new Date(+dm[1], +dm[2]-1, +dm[3], +dm[4], +dm[5]) });
+  }
+  return items;
+}
+/* 두 쪽씩 동시에 받아 온다. 요청 기간보다 과거까지 내려가면 멈춘다. */
+async function naverFinanceNews(code, maxPages, fromD, alive){
   const out = [];
-  for(let p=1; p<=pages; p++){
-    const url = 'https://finance.naver.com/item/news_news.naver?code='+code+'&page='+p;
-    let html;
-    try{
-      const buf = await grab(url,{binary:true, timeout:18000});
-      html = decodeEucKr(buf);
-      if(html.indexOf('<') === -1) throw new Error('빈 응답');
-    }catch(_){ break; }
-
-    const doc = new DOMParser().parseFromString(html,'text/html');
-    const rows = [...doc.querySelectorAll('tr')];
-    let got = 0;
-    for(const tr of rows){
-      const a = tr.querySelector('td.title a, .title a');
-      if(!a) continue;
-      const title = clean(a.textContent);
-      const info  = clean((tr.querySelector('td.info, .info')||{}).textContent||'');
-      const dateS = clean((tr.querySelector('td.date, .date')||{}).textContent||'');
-      const href  = a.getAttribute('href') || '';
-      const oid = (href.match(/office_id=(\d+)/)||[])[1];
-      const aid = (href.match(/article_id=(\d+)/)||[])[1];
-      const link = (oid && aid) ? 'https://n.news.naver.com/mnews/article/'+oid+'/'+aid
-                                : new URL(href, 'https://finance.naver.com/item/').href;
-      // 2026.07.26 09:30 형식
-      const dm = dateS.match(/(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})/);
-      if(!title || !dm) continue;
-      out.push({
-        title, press: info || '네이버뉴스', link, summary:'', src:'네이버',
-        date: new Date(+dm[1], +dm[2]-1, +dm[3], +dm[4], +dm[5])
-      });
-      got++;
+  let stop = false;
+  for(let p=1; p<=maxPages && !stop; p+=2){
+    if(alive && !alive()) break;
+    const batch = [p, p+1].filter(n=>n<=maxPages);
+    const htmls = await Promise.all(batch.map(async n=>{
+      try{
+        const buf = await grab('https://finance.naver.com/item/news_news.naver?code='+code+'&page='+n,
+                               {binary:true, timeout:15000});
+        const h = decodeEucKr(buf);
+        return h.indexOf('<') === -1 ? null : h;
+      }catch(_){ return null; }
+    }));
+    let gotAny = false;
+    for(const html of htmls){
+      if(!html){ stop = true; continue; }
+      const items = parseNaverRows(html);
+      if(!items.length){ stop = true; continue; }
+      out.push(...items);
+      gotAny = true;
+      if(fromD && items.some(i=>i.date < fromD)) stop = true;
     }
-    if(!got) break;
+    if(!gotAny) stop = true;
   }
   return out;
 }
 
 /* ── 기사 요약: 언론사가 제공한 요약문(og:description) 한 줄 읽기 ── */
+const sumCache = {};
+try{ Object.assign(sumCache, JSON.parse(sessionStorage.getItem('nb_sum')||'{}')); }catch(_){}
+function cacheSummary(url, s){
+  sumCache[url] = s;
+  try{ sessionStorage.setItem('nb_sum', JSON.stringify(sumCache)); }catch(_){}
+}
 async function fetchSummary(url){
+  if(url in sumCache) return sumCache[url];
   let html;
-  try{ html = await grab(url,{timeout:14000}); }catch(_){ return ''; }
+  try{ html = await grab(url,{timeout:11000, hedge:1300, max:2}); }catch(_){ cacheSummary(url,''); return ''; }
   const pick = re => { const m = html.match(re); return m ? clean(m[1]) : ''; };
   let s = pick(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']{20,600})["']/i)
        || pick(/<meta[^>]+content=["']([^"']{20,600})["'][^>]+property=["']og:description["']/i)
@@ -536,25 +592,29 @@ async function fetchSummary(url){
     const ps = [...body.matchAll(/<p[^>]*>([\s\S]{40,600}?)<\/p>/gi)].map(m=>clean(m[1])).filter(t=>t.length>40);
     s = ps[0] || '';
   }
-  if(!s) return '';
+  if(!s){ cacheSummary(url,''); return ''; }
   // 2~3문장까지만 (저작권상 전문 저장 금지)
   const sents = s.split(/(?<=[.!?。다\?])\s+/).filter(Boolean);
   let out = sents.slice(0,3).join(' ');
   if(out.length > 220) out = out.slice(0,220).replace(/\s\S*$/,'') + '…';
+  cacheSummary(url, out);
   return out;
 }
-async function fillSummaries(arts, n, onTick){
+const LANES = 6;                     /* 동시에 읽는 기사 수 */
+async function fillSummaries(arts, n, onEach, alive){
   const targets = arts.slice(0, n);
   let done = 0;
   const worker = async list => {
     for(const a of list){
+      if(alive && !alive()) return;
       if(!a.summary) a.summary = await fetchSummary(a.link);
-      onTick(++done, targets.length);
-      await sleep(120);
+      if(alive && !alive()) return;
+      onEach(a, ++done, targets.length);
+      await sleep(60);
     }
   };
-  const lanes = [[],[],[]];
-  targets.forEach((a,i)=>lanes[i%3].push(a));
+  const lanes = Array.from({length:LANES},()=>[]);
+  targets.forEach((a,i)=>lanes[i%LANES].push(a));
   await Promise.all(lanes.map(worker));
 }
 
@@ -562,15 +622,25 @@ async function fillSummaries(arts, n, onTick){
    5. 구조화
    ══════════════════════════════════════════════════════════════════ */
 const normTitle = t => t.replace(/[\[\]()<>·“”"'‘’,.\-—…!?%\s]/g,'').toLowerCase();
+/* 같은 기사가 두 경로에서 잡히면 하나만 남기되, 어느 경로에서 나왔는지는 합쳐 둔다.
+   (그러지 않으면 네이버가 잡은 기사가 구글 것과 겹칠 때 통째로 사라져 네이버 수집량이
+    실제보다 적어 보인다) */
 function dedupe(arts){
-  const seen=new Set(), links=new Set(), out=[];
+  const byKey = new Map(), byLink = new Map(), out = [];
   for(const a of arts){
     const k = normTitle(a.title);
-    if(!k || seen.has(k) || links.has(a.link)) continue;
-    let dup=false;
-    for(const s of seen){ if(k.length>18 && s.length>18 && k.slice(0,18)===s.slice(0,18)){ dup=true; break; } }
-    if(dup) continue;
-    seen.add(k); links.add(a.link); out.push(a);
+    if(!k) continue;
+    let hit = byKey.get(k) || byLink.get(a.link) || null;
+    if(!hit && k.length>18){
+      for(const [kk,v] of byKey){
+        if(kk.length>18 && kk.slice(0,18)===k.slice(0,18)){ hit=v; break; }
+      }
+    }
+    if(hit){
+      if(hit.src.indexOf(a.src)===-1) hit.src += '+' + a.src;
+      continue;
+    }
+    byKey.set(k,a); byLink.set(a.link,a); out.push(a);
   }
   return out;
 }
@@ -662,6 +732,11 @@ setRange(7); loadRecent();
    ══════════════════════════════════════════════════════════════════ */
 let BRIEF=null;
 
+/* 검색 회차. 새 검색을 시작하거나 '중지'를 누르면 번호가 올라가고,
+   이전 회차에서 돌던 작업은 결과를 화면에 반영하지 않고 스스로 물러난다. */
+let RUN = 0;
+function cancelRun(){ RUN++; abortAll(); }
+
 function resolveStock(raw){
   const t = raw.trim();
   const byCode = STOCKS.find(s=>s.code.toLowerCase()===t.toLowerCase());
@@ -684,34 +759,45 @@ $('go').addEventListener('click', async ()=>{
   const st = resolveStock(raw);
   const fromD=new Date(from+'T00:00:00'), toD=new Date(to+'T23:59:59');
 
+  cancelRun();                       // 돌고 있던 이전 수집이 있으면 즉시 끊는다
+  const my = RUN, alive = () => my === RUN;
+
   $('brief').style.display='none'; $('bar').style.display='none';
-  $('go').disabled=true;
   const notes=[];
 
   try{
-    let arts=[];
+    /* 수집 경로를 모두 동시에 돌린다 — 하나가 느려도 나머지가 기다리지 않도록 */
+    const tasks = [];
 
-    /* 구글 뉴스 — 국내는 한국어, 해외는 영어 + 한국어 */
+    /* 구글 뉴스 — 국내는 한국어 2종, 해외는 영어 + 한국어 */
     if($('srcG').checked){
       const queries = st.mkt==='US'
         ? [[`"${st.en||st.name}" OR "${st.code}" stock`,'en'], [`"${st.name}" 주가`,'ko']]
         : [[`"${st.name}"`,'ko'], [`"${st.name}" (실적 OR 공시 OR 수주 OR 목표주가 OR 규제)`,'ko']];
-      for(let i=0;i<queries.length;i++){
-        setStatus('<div class="spin"></div>구글 뉴스를 수집하는 중… ('+(i+1)+'/'+queries.length+')', false, 10+i*15);
-        try{ arts = arts.concat(parseRss(await grab(gnUrl(queries[i][0], from, to, queries[i][1]), {want:'<item'}))); }
-        catch(e){ if(i===0) notes.push('구글 뉴스 수집 실패'); }
-      }
+      tasks.push((async ()=>{
+        const got = await Promise.all(queries.map(async ([q,lang])=>{
+          try{ return parseRss(await grab(gnUrl(q, from, to, lang), {want:'<item'})); }
+          catch(_){ return null; }
+        }));
+        if(got.every(g=>g===null)){ notes.push('구글 뉴스 수집 실패'); return []; }
+        return got.filter(Boolean).flat();
+      })());
     }
 
     /* 네이버 금융 종목뉴스 — 국내 6자리 코드일 때만 */
     if($('srcN').checked && st.mkt==='KR' && /^\d{6}$/.test(st.code)){
-      setStatus('<div class="spin"></div>네이버 뉴스를 수집하는 중…', false, 45);
-      try{
-        const nv = await naverFinanceNews(st.code, 3);
-        if(nv.length) arts = arts.concat(nv);
-        else notes.push('네이버 뉴스 결과 없음');
-      }catch(_){ notes.push('네이버 뉴스 수집 실패'); }
+      tasks.push((async ()=>{
+        try{
+          const nv = await naverFinanceNews(st.code, 6, fromD, alive);
+          if(!nv.length) notes.push('네이버 뉴스 결과 없음');
+          return nv;
+        }catch(_){ notes.push('네이버 뉴스 수집 실패'); return []; }
+      })());
     }
+
+    setStatus('<div class="spin"></div>'+esc(st.name)+' 뉴스를 수집하는 중…', false, 35, true);
+    let arts = (await Promise.all(tasks)).flat();
+    if(!alive()) return;                       // 중지됐거나 다른 종목으로 넘어감
 
     /* 기간 필터 → 중복 제거 → 정렬 → 건수 제한 */
     arts = arts.filter(a=>a.date>=fromD && a.date<=toD);
@@ -722,48 +808,81 @@ $('go').addEventListener('click', async ()=>{
     if(!arts.length){
       setStatus('<b>수집된 기사가 없습니다.</b><br>기간을 넓히거나 종목명을 정식 상호명으로 입력해 보세요.'+
         (notes.length?'<br><br>· '+notes.join('<br>· '):''), true);
-      $('go').disabled=false; return;
+      return;
     }
 
-    /* 요약 채우기 */
-    const sn = Math.min(+$('sumN').value, arts.length);
-    if(sn>0){
-      await fillSummaries(arts, sn, (d,t)=>
-        setStatus('<div class="spin"></div>기사 요약을 가져오는 중… '+d+'/'+t, false, 55+Math.round(d/t*40)));
-    }
-
-    /* 구조화 */
-    arts.forEach(a=>Object.assign(a, classify(a.title, a.summary)));
-    const byCat={};
-    CAT_ORDER.forEach(c=>byCat[c]=[]);
-    arts.forEach(a=>byCat[a.cat].push(a));
-
+    /* 구조화 — 목록을 먼저 보여주고, 오래 걸리는 요약은 뒤에서 채운다 */
+    arts.forEach((a,i)=>{ a.i=i; Object.assign(a, classify(a.title, a.summary)); });
     const now=new Date();
     BRIEF = {
-      name:st.name, code:st.code, mkt:st.mkt, en:st.en, from, to, arts, byCat, notes,
+      name:st.name, code:st.code, mkt:st.mkt, en:st.en, from, to, arts, notes,
       made: ymd(now)+' '+pad(now.getHours())+':'+pad(now.getMinutes()),
-      good: arts.filter(a=>a.tone==='good').length,
-      bad:  arts.filter(a=>a.tone==='bad').length,
-      neu:  arts.filter(a=>a.tone==='neu').length,
-      summarized: arts.filter(a=>a.summary).length,
-      srcCount: { 구글: arts.filter(a=>a.src==='구글').length, 네이버: arts.filter(a=>a.src==='네이버').length }
+      sumTarget: Math.min(+$('sumN').value, arts.length)
     };
+    recount(BRIEF);
 
     setStatus('');
     render(BRIEF);
     saveRecent(st.name);
     $('brief').scrollIntoView({behavior:'smooth', block:'start'});
+
+    /* 요약 채우기 (화면은 이미 떠 있는 상태) */
+    if(BRIEF.sumTarget > 0){
+      const line = () => $('sumProg');
+      await fillSummaries(arts, BRIEF.sumTarget, (a,d,t)=>{
+        if(!alive()) return;
+        const el = document.getElementById('sum'+a.i);
+        if(el){
+          if(a.summary){ el.textContent = a.summary; el.style.display=''; }
+          else el.remove();
+        }
+        const l = line(); if(l) l.textContent = '기사 요약을 불러오는 중… '+d+'/'+t;
+      }, alive);
+      if(!alive()) return;
+      const sb = $('sumStop'); if(sb) sb.remove();
+      /* 제목만으로 '기타'였던 기사는 요약문을 보고 다시 분류 */
+      let changed = false;
+      arts.forEach(a=>{
+        if(a.cat==='기타' && a.summary){
+          const c = classify(a.title, a.summary);
+          if(c.cat!=='기타'){ a.cat=c.cat; a.tone=c.tone; changed=true; }
+        }
+      });
+      recount(BRIEF);
+      if(changed){
+        const y = window.scrollY;
+        render(BRIEF);
+        window.scrollTo(0,y);
+      }
+      const l = line();
+      if(l) l.textContent = '요약문 확보 '+BRIEF.summarized+'/'+arts.length+'건';
+    }
   }catch(err){
+    if(!alive()) return;                       // 중지로 인한 예외는 알릴 필요 없음
     setStatus('<b>뉴스를 가져오지 못했습니다.</b><br>'+esc(err.message||err)+
       '<br><br>공개 중계 서버가 일시적으로 막혔을 수 있습니다. 잠시 후 다시 시도해 주세요.', true);
-  }finally{
-    $('go').disabled=false;
   }
 });
 
 /* ══════════════════════════════════════════════════════════════════
    8. 화면 렌더링
    ══════════════════════════════════════════════════════════════════ */
+/* 집계 다시 계산 (요약이 채워져 분류가 바뀌면 다시 부른다) */
+function recount(b){
+  const byCat={};
+  CAT_ORDER.forEach(c=>byCat[c]=[]);
+  b.arts.forEach(a=>byCat[a.cat].push(a));
+  b.byCat = byCat;
+  b.good = b.arts.filter(a=>a.tone==='good').length;
+  b.bad  = b.arts.filter(a=>a.tone==='bad').length;
+  b.neu  = b.arts.filter(a=>a.tone==='neu').length;
+  b.summarized = b.arts.filter(a=>a.summary).length;
+  b.srcCount = {
+    구글:   b.arts.filter(a=>a.src.indexOf('구글')>=0).length,
+    네이버: b.arts.filter(a=>a.src.indexOf('네이버')>=0).length
+  };
+}
+
 function render(b){
   const catRows = CAT_ORDER.filter(c=>b.byCat[c].length)
     .map(c=>'<span>'+esc(c)+'<i>'+b.byCat[c].length+'</i></span>').join('');
@@ -771,10 +890,10 @@ function render(b){
   const groups = CAT_ORDER.filter(c=>b.byCat[c].length).map(c=>{
     const items = b.byCat[c].map(a=>
       '<li class="art"><a class="ti" href="'+esc(a.link)+'" target="_blank" rel="noopener">'+esc(a.title)+'</a>'+
-      (a.summary?'<div class="sum">'+esc(a.summary)+'</div>':'')+
+      '<div class="sum" id="sum'+a.i+'"'+(a.summary?'':' style="display:none"')+'>'+esc(a.summary||'')+'</div>'+
       '<div class="meta"><span class="tag t-'+a.tone+'">'+toneKo(a.tone)+'</span>'+
       '<span>'+esc(a.press)+'</span><span>'+ymd(a.date)+' '+pad(a.date.getHours())+':'+pad(a.date.getMinutes())+'</span>'+
-      '<span class="src-tag">'+a.src+'</span></div></li>').join('');
+      '<span class="src-tag">'+esc(a.src)+'</span></div></li>').join('');
     return '<div class="grp">'+esc(c)+' · '+b.byCat[c].length+'건</div><ul class="arts">'+items+'</ul>';
   }).join('');
 
@@ -791,8 +910,21 @@ function render(b){
       '<div class="kpi n"><b>'+b.neu+'</b><span>중립</span></div></div>'+
     '<div class="card"><h2>카테고리 분포</h2><div class="catbar">'+catRows+'</div>'+
       (b.notes.length?'<p class="hint">· '+b.notes.map(esc).join('<br>· ')+'</p>':'')+
-      '<p class="hint">요약문 확보 '+b.summarized+'/'+b.arts.length+'건</p></div>'+
+      '<p class="hint" id="sumProg">'+(b.sumTarget>b.summarized
+          ? '기사 요약을 불러오는 중… 0/'+b.sumTarget
+          : '요약문 확보 '+b.summarized+'/'+b.arts.length+'건')+'</p>'+
+      (b.sumTarget>b.summarized ? '<button class="stopbtn sm" id="sumStop">■ 요약 중지</button>' : '')+
+      '</div>'+
     '<div class="card"><h2>카테고리별 기사</h2>'+groups+'</div>';
+
+  const sb = $('sumStop');
+  if(sb) sb.onclick = ()=>{
+    cancelRun();                       // 요약만 멈춘다 — 이미 나온 목록과 PDF는 그대로 쓸 수 있다
+    recount(b);
+    const l = $('sumProg');
+    if(l) l.textContent = '요약 불러오기를 중지했습니다 (확보 '+b.summarized+'/'+b.arts.length+'건)';
+    sb.remove();
+  };
 
   $('brief').style.display='block';
   $('bar').style.display='block';
