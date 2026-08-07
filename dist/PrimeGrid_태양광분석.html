@@ -288,9 +288,16 @@ table.wrap-cells td.mono { line-height: 1.9; word-break: break-word; }
 }
 
 
-  /* 표가 길어 헤더를 고정하되, 상단 사이트 헤더(60px) 아래에 붙도록 한다 */
-  #tbl th { top: 60px; z-index: 2; }
-  @media print { #tbl th { position: static; } }
+  /* 65행이라 표 자체를 스크롤시키고 머리글을 그 안에 고정한다.
+     .tbl-wrap은 overflow-x:auto 때문에 이미 스크롤 컨테이너이므로,
+     sticky 기준도 화면이 아니라 이 래퍼다 → top은 반드시 0이어야 한다.
+     (0이 아닌 값을 주면 머리글이 제자리에서 그만큼 밀려 첫 행들을 덮는다) */
+  .tbl-scroll { max-height: 68vh; }
+  #tbl th { top: 0; z-index: 2; }
+  @media print {
+    .tbl-scroll { max-height: none; overflow: visible; }
+    #tbl th { position: static; }
+  }
   th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
   th.sortable:hover { color: var(--text); }
   th.sortable::after { content: ' ⇅'; opacity: .35; font-size: .85em; }
@@ -383,7 +390,7 @@ table.wrap-cells td.mono { line-height: 1.9; word-break: break-word; }
       <button onclick="window.print()">인쇄 / PDF</button>
     </div>
 
-    <div class="tbl-wrap">
+    <div class="tbl-wrap tbl-scroll">
       <table id="s-tbl">
         <thead><tr>
           <th class="sortable" data-k="n">지점</th>

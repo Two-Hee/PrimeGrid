@@ -9,9 +9,16 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%277%27 fill=%27%23e08a1e%27/%3E%3Cg stroke=%27%23e08a1e%27 stroke-width=%272.6%27 stroke-linecap=%27round%27%3E%3Cpath d=%27M16 2v4M16 26v4M2 16h4M26 16h4M6 6l3 3M23 23l3 3M26 6l-3 3M9 23l-3 3%27/%3E%3C/g%3E%3C/svg%3E">
 <script>(function(){try{var t=localStorage.getItem("pg-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <style>
-  /* 표가 길어 헤더를 고정하되, 상단 사이트 헤더(60px) 아래에 붙도록 한다 */
-  #tbl th { top: 60px; z-index: 2; }
-  @media print { #tbl th { position: static; } }
+  /* 65행이라 표 자체를 스크롤시키고 머리글을 그 안에 고정한다.
+     .tbl-wrap은 overflow-x:auto 때문에 이미 스크롤 컨테이너이므로,
+     sticky 기준도 화면이 아니라 이 래퍼다 → top은 반드시 0이어야 한다.
+     (0이 아닌 값을 주면 머리글이 제자리에서 그만큼 밀려 첫 행들을 덮는다) */
+  .tbl-scroll { max-height: 68vh; }
+  #tbl th { top: 0; z-index: 2; }
+  @media print {
+    .tbl-scroll { max-height: none; overflow: visible; }
+    #tbl th { position: static; }
+  }
   th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
   th.sortable:hover { color: var(--text); }
   th.sortable::after { content: ' ⇅'; opacity: .35; font-size: .85em; }
@@ -73,7 +80,7 @@
       <button onclick="window.print()">인쇄 / PDF</button>
     </div>
 
-    <div class="tbl-wrap">
+    <div class="tbl-wrap tbl-scroll">
       <table id="tbl">
         <thead><tr>
           <th class="sortable" data-k="n">지점</th>
