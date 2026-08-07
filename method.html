@@ -71,8 +71,23 @@
   <span class="badge warn">계기 편향 의심</span>으로 표시합니다. 65개 지점 중 <strong>13개</strong>가
   여기 해당합니다(최대 보성군 +46.7%).</p>
   <p>이런 지점에서 10년 평균을 쓰면 <strong>현재 조건을 과소평가</strong>하게 됩니다.
-  도구에서 기준 기간을 <em>최근 5년</em>으로 바꾸면 이 영향이 줄어들며,
-  해당 지점을 선택하면 경고와 함께 안내합니다.</p>
+  그래서 기준 기간을 <strong>두 단계로 나눠</strong> 적용합니다.</p>
+  <div class="tbl-wrap"><table class="wrap-cells">
+    <thead><tr><th>대상</th><th style="text-align:left">적용 기준 기간</th></tr></thead>
+    <tbody>
+      <tr><td>일반 지점</td><td style="text-align:left">「기준 기간」 설정값 — 기본 <strong>10년(2016~2025)</strong></td></tr>
+      <tr><td>계기 편향 의심 13개 지점</td><td style="text-align:left">「편향 의심 지점 기준기간」 설정값 — 기본 <strong>최근 5년(2021~2025)</strong></td></tr>
+    </tbody>
+  </table></div>
+  <p>편향 지점만 최근 5년을 쓰고, 나머지는 관측 기간이 긴 10년 평균을 그대로 씁니다.
+  두 설정을 같게 두면 전 지점이 동일한 기간을 쓰게 됩니다.
+  산출표에서는 <span class="mono">5_POA_설정</span> K5·K7이 같은 역할을 하며,
+  지점별 적용 결과는 <span class="mono">6_POA_월계산</span> AJ·AK열에서 확인할 수 있습니다.</p>
+  <div class="note">
+    <strong>엑셀과 웹의 값이 다르게 보인다면</strong> 두 설정이 서로 다른지 먼저 확인하십시오.
+    기준 기간이 다르면 입력 GHI가 달라지고, 그에 따라 K<sub>t</sub>·확산분율·POA가 모두 달라집니다.
+    계산식 자체는 양쪽이 동일합니다.
+  </div>
 
   <h2 id="calc">2. 계산식</h2>
   <p>수평면 일사량(GHI)을 경사면 일사량(POA)으로 변환합니다. 순서는 다음과 같습니다.</p>

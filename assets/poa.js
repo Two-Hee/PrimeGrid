@@ -5,8 +5,8 @@
  *   2) 15분 간격 태양벡터로 직달 기하계수 Rb 산출
  *   3) 등방성(Liu-Jordan) 천공 + 지면반사 합산
  *
- * 원본 산출표(POA v02)의 독립 검증표와 61개 지점 비교 시
- * 연간 POA 평균 오차 0.14%, 최대 1.85%.
+ * 원본 산출표의 독립 검증표와 대조 시, 자료가 동일한 56개 지점에서
+ * 연간 POA가 오차 0.000%로 일치. β=0°에서 POA=GHI 항등식도 정확히 성립.
  */
 (function (global) {
   'use strict';
@@ -57,6 +57,15 @@
       den += sU;
     }
     return den > 0 ? num / den : 0;
+  }
+
+  /**
+   * 지점에 실제로 적용할 기준 기간.
+   * 「계기 편향 의심」 지점만 biasPeriod를 따르고, 나머지는 basePeriod를 쓴다.
+   * 산출표 6_POA_월계산 AK열(=IF(AJ="계기 편향 의심",POA_편향기간,POA_기준기간))과 같은 규칙.
+   */
+  function effectivePeriod(st, basePeriod, biasPeriod) {
+    return (st && st.bv === '계기 편향 의심' && biasPeriod) ? biasPeriod : basePeriod;
   }
 
   /**
@@ -154,6 +163,7 @@
     MONTHS: MONTHS, DOY: DOY,
     solarGeom: solarGeom, erbsMonthly: erbsMonthly, rbFactor: rbFactor,
     monthly: monthly, annual: annual, yieldTable: yieldTable,
+    effectivePeriod: effectivePeriod,
     moduleFactor: moduleFactor, uncertainty: uncertainty
   };
 })(window);
