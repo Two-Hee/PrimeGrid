@@ -215,8 +215,11 @@
     if (!S) return;
     var bits = ['관측 ' + S.obs + '년', '유효 ' + S.vm + '개월'];
     if (S.cv && S.yrs >= 3) bits.push('연변동 ±' + (S.cv * 100).toFixed(1) + '%');
-    $('stInfo').textContent = '위도 ' + S.lat + '°N · ' + bits.join(' · ') +
-      (S.vm < 12 ? ' · 자료 부족 — 참고용' : '');
+    var txt = '위도 ' + S.lat + '°N · ' + bits.join(' · ') + (S.vm < 12 ? ' · 자료 부족 — 참고용' : '');
+    if (S.bv === '계기 편향 의심') {
+      txt += ' · ▲ 계기 편향 의심(' + UI.signPct(S.br - 1) + ') — 기준선이 실제보다 낮게 잡힐 수 있습니다';
+    }
+    $('stInfo').textContent = txt;
   }
 
   function sync() {
@@ -256,7 +259,7 @@
         chartAct.push(NaN); chartExp.push(NaN); band.push(null);
         return;
       }
-      var poaM = r.poa * D.days[i];
+      var poaM = r.poaMonth;
       var exp = kw * poaM * REF_PR * mf;
       var act = actual[i];
       chartExp.push(exp);

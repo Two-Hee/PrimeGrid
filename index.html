@@ -59,9 +59,9 @@
         <div class="sub">2016 ~ 2025</div>
       </div>
       <div class="stat hi">
-        <div class="k">검증 오차</div>
-        <div class="v">0.14<span class="u">%</span></div>
-        <div class="sub">독립 재계산 대비 평균</div>
+        <div class="k">기준표 대조</div>
+        <div class="v">56<span class="u">/56</span></div>
+        <div class="sub">완전 일치 (오차 0.000%)</div>
       </div>
     </div>
   </section>
@@ -97,8 +97,9 @@
         <h3 class="mt0">원자료를 밝힙니다</h3>
         <p class="muted" style="margin-bottom:0">
           기상청 ASOS 일사량 관측자료 2016–2025년 177,818건입니다.
-          어느 지점의 몇 년치를 썼는지, 결측이 얼마나 있는지 지점마다 표시합니다.
-          자료가 부족한 지점은 <strong>부족하다고 표시</strong>하고 결과를 참고용으로 낮춥니다.
+          물리적으로 불가능한 관측값(Kt&gt;1) 27건은 <a href="method.html#outlier">걸러냈고</a>,
+          일사계 교체가 의심되는 13개 지점은 <a href="method.html#bias">경고를 띄웁니다</a>.
+          자료가 부족한 지점은 <strong>부족하다고 표시</strong>합니다.
         </p>
       </div>
       <div class="card">
@@ -112,8 +113,8 @@
       <div class="card">
         <h3 class="mt0">검증 결과를 공개합니다</h3>
         <p class="muted" style="margin-bottom:0">
-          독립적으로 재계산한 기준표와 61개 지점을 비교해 연간 POA
-          평균 오차 0.14%, 최대 1.85%를 확인했습니다.
+          독립 재계산 기준표와 대조해 자료가 동일한 56개 지점이 <strong>오차 0.000%로
+          완전히 일치</strong>함을 확인했습니다. β=0° 물리 검산도 정확히 성립합니다.
           <a href="method.html#verify">지점별 비교표</a>를 그대로 공개합니다.
         </p>
       </div>

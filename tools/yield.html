@@ -118,6 +118,7 @@
             <div class="sub" id="rCumSub">—</div>
           </div>
         </div>
+        <div id="biasWarn"></div>
         <div class="note" id="unc" style="margin-bottom:0"></div>
       </div>
 
@@ -218,7 +219,7 @@
   function bestTilt(o) {
     var best = 0, bv = -1;
     for (var b = 0; b <= 60; b++) {
-      var a = POA.annual(POA.monthly(S, { beta: b, azim: o.azim, rho: o.rho, period: o.period }), D.days);
+      var a = POA.annual(POA.monthly(S, { beta: b, azim: o.azim, rho: o.rho, period: o.period }));
       if (a.poa > bv) { bv = a.poa; best = b; }
     }
     return { tilt: best, poa: bv };
@@ -235,7 +236,7 @@
     var kw = Math.max(1, +$('kw').value || 1);
     var years = Math.max(1, Math.min(30, +$('years').value || 1));
     var initLoss = +$('init').value, annLoss = +$('ann').value;
-    var y = POA.yieldTable(rows, D.days, {
+    var y = POA.yieldTable(rows, {
       kw: kw, pr: +$('pr').value, initLoss: initLoss, annLoss: annLoss, years: years
     });
 
@@ -244,7 +245,7 @@
     var vy = Math.max(1, Math.min(years, +$('viewYear').value || 1));
     if (+$('viewYear').value !== vy) $('viewYear').value = vy;
     var vyFactor = POA.moduleFactor(vy, initLoss, annLoss);
-    var ann = POA.annual(rows, D.days);
+    var ann = POA.annual(rows);
     var unc = POA.uncertainty(S);
     var y1 = y.byYear[0], last = y.byYear[y.byYear.length - 1];
 
@@ -261,6 +262,20 @@
     $('optTilt').innerHTML = '방위각 ' + o.azim + '°에서 연간 일사량 최대 경사각은 <strong>' +
       bt.tilt + '°</strong> (' + UI.num(bt.poa, 0) + ' kWh/m²) · 현재 설정은 그 대비 ' +
       UI.signPct(ann.poa / bt.poa - 1);
+
+    var bw = '';
+    if (S.bv === '계기 편향 의심') {
+      bw = '<div class="note warn" style="margin:12px 0 0"><strong>▲ 계기 편향 의심 지점입니다.</strong> ' +
+        '최근 5년 관측값이 2016~2019년보다 ' + UI.signPct(S.br - 1) + ' 차이 납니다. ' +
+        '기후 변동이 아니라 일사계 교체·교정에 따른 계통 편차일 가능성이 큽니다. ' +
+        ($('period').value === '10y'
+          ? '<strong>기준 기간을 「최근 5년」으로 바꾸어 보십시오.</strong>'
+          : '현재 최근 5년 기준을 쓰고 있어 이 영향은 줄어듭니다.') + '</div>';
+    } else if (S.bv === '주의') {
+      bw = '<div class="note" style="margin:12px 0 0">기간 간 관측값 차이 ' + UI.signPct(S.br - 1) +
+        ' — 계기 편향 가능성이 약간 있습니다. 두 기준 기간 결과를 모두 확인해 보십시오.</div>';
+    }
+    $('biasWarn').innerHTML = bw;
 
     $('unc').innerHTML = '<strong>불확실성:</strong> 기후 연변동 ±' + (unc.climate * 100).toFixed(1) +
       '% (해당 지점 ' + (S.yrs || 0) + '개년 실측), 계산모델 ±' + (unc.model * 100).toFixed(0) +

@@ -67,22 +67,28 @@
    */
   function monthly(st, opt) {
     var beta = opt.beta, azim = opt.azim, rho = opt.rho;
-    var ghi = (opt.period === '5y' && st.ghi5) ? st.ghi5 : st.ghi;
+    var five = (opt.period === '5y' && st.ghi5);
+    var ghi = five ? st.ghi5 : st.ghi;                     // 월 유효일평균 (kWh/m²/day)
+    var gm  = five ? st.gm5  : st.gm;                      // 월 합계      (kWh/m²)
     var fSky = (1 + Math.cos(beta * RAD)) / 2;
     var fGnd = (1 - Math.cos(beta * RAD)) / 2;
     var out = [];
     for (var m = 0; m < 12; m++) {
-      var H = ghi[m];
-      if (H === null || H === undefined) { out.push(null); continue; }
+      var H = ghi[m], M = gm[m];
+      if (H === null || H === undefined || !M) { out.push(null); continue; }
       var g = solarGeom(DOY[m], st.lat);
       var Kt = g.H0 > 0 ? H / g.H0 : 0;
       var fd = erbsMonthly(Kt, g.ws / RAD);
       var Hd = H * fd, Hb = H - Hd;
       var Rb = rbFactor(g.phi, g.decl, beta, azim);
+      var poaDay = Hb * Rb + Hd * fSky + H * rho * fGnd;
       out.push({
         m: m + 1, label: MONTHS[m],
-        ghi: H, kt: Kt, fd: fd, rb: Rb,
-        poa: Hb * Rb + Hd * fSky + H * rho * fGnd,
+        ghi: H, gm: M, kt: Kt, fd: fd, rb: Rb,
+        poa: poaDay,
+        // 월 POA = 월 GHI × (일평균 POA ÷ 일평균 GHI) — 워크북 6_POA_월계산과 동일
+        poaMonth: M * (poaDay / H),
+        days: M / H,
         beam: Hb * Rb, sky: Hd * fSky, gnd: H * rho * fGnd,
         ktOut: Kt < 0.30 || Kt > 0.80                      // Erbs 적용범위 이탈
       });
@@ -90,13 +96,13 @@
     return out;
   }
 
-  /** 월별 일평균(kWh/m²/day) → 월 합계(kWh/m²) 및 연간 합계 */
-  function annual(rows, days) {
+  /** 연간 합계 */
+  function annual(rows) {
     var poa = 0, ghi = 0, n = 0;
     for (var m = 0; m < 12; m++) {
       if (!rows[m]) continue;
-      poa += rows[m].poa * days[m];
-      ghi += rows[m].ghi * days[m];
+      poa += rows[m].poaMonth;
+      ghi += rows[m].gm;
       n++;
     }
     return { poa: poa, ghi: ghi, months: n, ratio: ghi > 0 ? poa / ghi : 0 };
@@ -111,18 +117,19 @@
    * 발전량 추정.
    * @param opt {kw, pr, initLoss, annLoss, years}
    */
-  function yieldTable(rows, days, opt) {
+  function yieldTable(rows, opt) {
     var byMonth = [], byYear = [], cum = 0;
+    var f1 = moduleFactor(1, opt.initLoss, opt.annLoss);
     for (var m = 0; m < 12; m++) {
       if (!rows[m]) { byMonth.push(null); continue; }
-      var poaM = rows[m].poa * days[m];
+      var poaM = rows[m].poaMonth;
       byMonth.push({
-        label: rows[m].label, days: days[m], poa: poaM,
-        kwh: opt.kw * poaM * opt.pr * moduleFactor(1, opt.initLoss, opt.annLoss),
-        hday: rows[m].poa * opt.pr * moduleFactor(1, opt.initLoss, opt.annLoss)
+        label: rows[m].label, days: rows[m].days, poa: poaM,
+        kwh: opt.kw * poaM * opt.pr * f1,
+        hday: rows[m].poa * opt.pr * f1
       });
     }
-    var a = annual(rows, days);
+    var a = annual(rows);
     for (var y = 1; y <= opt.years; y++) {
       var f = moduleFactor(y, opt.initLoss, opt.annLoss);
       var kwh = opt.kw * a.poa * opt.pr * f;

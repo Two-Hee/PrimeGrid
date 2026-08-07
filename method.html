@@ -38,6 +38,7 @@
       <tr><td><strong>자료량</strong></td><td style="text-align:left">일별 관측 177,818건</td></tr>
       <tr><td><strong>지점</strong></td><td style="text-align:left">전국 65개소 (이 중 12개월 자료 완비 62개소)</td></tr>
       <tr><td><strong>좌표</strong></td><td style="text-align:left">기상청 현재/최신 대표 지점좌표</td></tr>
+      <tr><td><strong>집계 규칙</strong></td><td style="text-align:left">월 커버리지 80% 이상인 달만 평균 · 일 K<sub>t</sub>&gt;1 이상치 27건 제외</td></tr>
     </tbody>
   </table>
 
@@ -45,11 +46,33 @@
   판단되는 57건)은 평균에서 제외했습니다. 관측 이력이 짧은 지점은 지점 선택 화면에
   <em>부분 자료</em>로 표시하고, 결과에도 참고용임을 명시합니다.</p>
 
+  <h3 id="outlier">1.1 이상치 제외 (Kt 상한)</h3>
+  <p>일사계에는 이슬·서리·계측 오류로 <strong>물리적으로 불가능한 값</strong>이 섞입니다.
+  이를 걸러내기 위해 관측일마다 청명도지수를 계산합니다.</p>
+  <p class="mono">일 K<sub>t</sub> = 일 GHI ÷ 그날 그 위도의 대기권외 일사량</p>
+  <p>대기를 통과한 일사량이 대기권 밖보다 많을 수는 없으므로
+  <strong>K<sub>t</sub> &gt; 1은 물리적으로 불가능</strong>합니다.
+  전 관측일 177,818건 중 <strong>27건</strong>이 여기 해당해 월·연 집계에서 제외했습니다.
+  최대값은 백령도 2022-10-05의 K<sub>t</sub> = 1.69로, 하루 12.6 kWh/m²라는 불가능한 값이었습니다.</p>
+  <p>K<sub>t</sub> 0.85~1.0 구간(139건)은 <em>제외하지 않습니다.</em> 실제로 매우 맑은 날일 수 있어
+  일괄 제거하면 오히려 값이 왜곡되기 때문입니다. 두 구간 모두 산출표의
+  <span class="mono">3C_이상치검사</span> 시트에 그대로 공개합니다.</p>
+
   <div class="note">
-    <strong>계기 편향 주의.</strong> 일사계는 교체·교정 이력에 따라 관측값이 계단식으로 변할 수
-    있습니다. 10년 평균과 최근 5년 평균이 크게 다른 지점은 이 영향을 의심해야 합니다.
-    도구에서 두 기간을 모두 선택할 수 있게 한 이유입니다.
+    <strong>제외의 연쇄 효과.</strong> 이상치를 빼면 그 달의 관측 커버리지가 함께 떨어집니다.
+    커버리지가 80% 밑으로 내려간 달은 월평균에서 통째로 빠집니다. 예를 들어 강진군 2018년 12월은
+    31일 중 7일이 이상치여서 커버리지가 77%가 되었고, 그 달 전체가 평균 대상에서 제외되었습니다.
+    의도한 동작입니다 — 믿을 수 없는 달은 평균에 넣지 않습니다.
   </div>
+
+  <h3 id="bias">1.2 계기 편향</h3>
+  <p>일사계는 교체·교정 이력에 따라 관측값이 계단식으로 변합니다. 2016~2019년 평균 대비
+  최근 5년 평균이 <strong>15% 이상 높은 지점</strong>은 기후 변화가 아니라 계기 편향으로 보고
+  <span class="badge warn">계기 편향 의심</span>으로 표시합니다. 65개 지점 중 <strong>13개</strong>가
+  여기 해당합니다(최대 보성군 +46.7%).</p>
+  <p>이런 지점에서 10년 평균을 쓰면 <strong>현재 조건을 과소평가</strong>하게 됩니다.
+  도구에서 기준 기간을 <em>최근 5년</em>으로 바꾸면 이 영향이 줄어들며,
+  해당 지점을 선택하면 경고와 함께 안내합니다.</p>
 
   <h2 id="calc">2. 계산식</h2>
   <p>수평면 일사량(GHI)을 경사면 일사량(POA)으로 변환합니다. 순서는 다음과 같습니다.</p>
@@ -107,8 +130,9 @@
   <p>차례로 직달, 등방성 천공산란, 등방성 지면반사입니다.
   등방성(Liu–Jordan) 모델은 단순하고 투명하지만 원일광(circumsolar)과 수평선 밝기를
   반영하지 않아 <strong>맑은 날 경사면 일사량을 다소 낮게</strong> 봅니다.
-  이방성 모델(HDKR/Perez)로 계산하면 통상 3~4% 높게 나옵니다. 이 사이트는
-  <em>보수적인 쪽</em>인 등방성 값을 기본으로 씁니다.</p>
+  이방성 모델(HDKR)로 계산하면 <strong>연간 평균 +3.24%</strong>(지점별 +2.3~+3.5%) 높게 나옵니다.
+  이 사이트는 <em>보수적인 쪽</em>인 등방성 값을 기본으로 씁니다. 산출표에서는
+  <span class="mono">5_POA_설정</span>의 천공 모델을 HDKR로 바꿔 두 값을 비교할 수 있습니다.</p>
 
   <h3>2.5 발전량</h3>
   <p class="mono">발전량 = 설비용량(kWdc) × POA(kWh/m²) × PR × 모듈 성능계수</p>
@@ -119,30 +143,45 @@
   <p class="muted"><small>기본값은 초기 1.5%, 연 0.33%입니다. 모듈 보증서의 값으로 바꿔 쓰십시오.</small></p>
 
   <h2 id="verify">3. 검증</h2>
-  <p>이 사이트의 계산 엔진을 원본 산출표의 <strong>독립 재계산 기준표</strong>와 비교했습니다.
+  <p>세 가지 서로 다른 방법으로 확인했습니다.</p>
+
+  <h3>3.1 원본 산출표 기준표와 대조</h3>
+  <p>이 사이트의 계산 엔진을 원본 산출표(v02)의 <strong>독립 재계산 기준표</strong>와 비교했습니다.
   기본 조건(경사각 30°, 방위각 180°, 지면반사율 0.2, 10년 평균, 등방성 천공)에서
   연간 POA를 지점별로 대조한 결과입니다.</p>
 
   <div class="grid c4" style="margin:18px 0">
-    <div class="stat hi"><div class="k">비교 지점</div><div class="v" id="vN">—</div></div>
+    <div class="stat hi"><div class="k">완전 일치</div><div class="v" id="vW">—</div></div>
     <div class="stat"><div class="k">평균 오차</div><div class="v" id="vMean">—</div></div>
     <div class="stat"><div class="k">최대 오차</div><div class="v" id="vMax">—</div></div>
-    <div class="stat"><div class="k">0.5% 이내</div><div class="v" id="vW">—</div></div>
+    <div class="stat"><div class="k">의도적 변경</div><div class="v" id="vC">—</div></div>
+  </div>
+
+  <div class="note ok">
+    자료가 바뀌지 않은 <strong id="vN2">—</strong>개 지점은 기준표와 <strong>소수점 아래까지 완전히
+    일치</strong>합니다. 나머지 <strong id="vC2">—</strong>개 지점은 아래 3.2의 이상치 제외로
+    <em>의도적으로</em> 값이 낮아진 곳이며, 표에 <span class="badge warn">이상치 제외</span>로 표시했습니다.
   </div>
 
   <div class="tbl-wrap" style="max-height:420px;overflow-y:auto">
     <table id="vTbl">
       <thead><tr>
-        <th>지점</th><th>본 엔진<br>(kWh/m²)</th><th>기준표<br>(kWh/m²)</th><th>편차</th>
+        <th>지점</th><th>본 엔진<br>(kWh/m²)</th><th>v02 기준표<br>(kWh/m²)</th><th>차이</th><th>비고</th>
       </tr></thead>
       <tbody></tbody>
     </table>
   </div>
-  <p class="muted"><small>편차가 1%를 넘는 소수 지점은 부분 결측 월의 평균 처리 방식 차이에서
-  비롯됩니다. 해당 지점은 도구에서도 자료 상태를 함께 표시합니다.</small></p>
 
-  <div class="note ok">
-    <strong>검증이 뜻하는 것과 뜻하지 않는 것.</strong> 이 표는 계산 <em>구현</em>이 정확하다는
+  <h3>3.2 물리 검산 — β = 0°</h3>
+  <p>경사각을 0°로 두면 R<sub>b</sub> = 1, 천공 view factor = 1, 지면 view factor = 0이 되어
+  <strong>POA와 GHI가 정확히 같아야</strong> 합니다. 전 지점에서 오차 0으로 성립합니다.</p>
+
+  <h3>3.3 웹 엔진과 산출표 대조</h3>
+  <p>브라우저에서 도는 JavaScript 엔진과 산출표를 만든 Python 코드는 서로 독립적으로 작성했습니다.
+  두 결과의 차이는 <strong>최대 0.003%</strong>(표시 반올림 수준)입니다.</p>
+
+  <div class="note">
+    <strong>검증이 뜻하는 것과 뜻하지 않는 것.</strong> 위 셋은 모두 계산 <em>구현</em>이 정확하다는
     확인입니다. 모델이 현실을 얼마나 맞히는지는 별개 문제이며, 그것은 아래 한계에 적었습니다.
   </div>
 
@@ -205,21 +244,27 @@
 
 <script>
 fetch('data/verification.json').then(function (r) { return r.json(); }).then(function (v) {
-  document.getElementById('vN').textContent = v.summary.n + '개';
-  document.getElementById('vMean').textContent = v.summary.mean + '%';
-  document.getElementById('vMax').textContent = v.summary.max + '%';
-  document.getElementById('vW').textContent = v.summary.within05 + '/' + v.summary.n;
+  var s = v.summary;
+  document.getElementById('vW').textContent = s.unchanged + '/' + s.unchanged;
+  document.getElementById('vMean').textContent = s.mean.toFixed(3) + '%';
+  document.getElementById('vMax').textContent = s.max.toFixed(3) + '%';
+  document.getElementById('vC').textContent = s.changed + '개';
+  document.getElementById('vN2').textContent = s.unchanged;
+  document.getElementById('vC2').textContent = s.changed;
   var tb = document.querySelector('#vTbl tbody');
   v.rows.forEach(function (r) {
-    var cls = Math.abs(r.d10) <= 0.5 ? 'ok' : Math.abs(r.d10) <= 1 ? 'warn' : 'bad';
+    var badge = r.ch
+      ? '<span class="badge warn">이상치 제외</span>'
+      : '<span class="badge ok">일치</span>';
     var tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + r.n + '</td><td>' + r.c10.toFixed(1) + '</td><td>' + r.e10.toFixed(1) +
-      '</td><td><span class="badge ' + cls + '">' + (r.d10 >= 0 ? '+' : '') + r.d10.toFixed(2) + '%</span></td>';
+    tr.innerHTML = '<td>' + r.n + '</td><td>' + r.eng.toFixed(1) + '</td><td>' + r.ref.toFixed(1) +
+      '</td><td>' + (r.d === 0 ? '—' : (r.d > 0 ? '+' : '') + r.d.toFixed(2) + '%') +
+      '</td><td style="text-align:right">' + badge + '</td>';
     tb.appendChild(tr);
   });
 }).catch(function () {
   document.querySelector('#vTbl tbody').innerHTML =
-    '<tr><td colspan="4" class="muted">검증표를 불러오려면 웹 서버에서 열어야 합니다.</td></tr>';
+    '<tr><td colspan="5" class="muted">검증표를 불러오려면 웹 서버에서 열어야 합니다.</td></tr>';
 });
 </script>
 <script src="assets/theme.js"></script>
