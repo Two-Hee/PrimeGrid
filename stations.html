@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>전국 지점 자료 — PrimeGrid</title>
-<meta name="description" content="기상청 ASOS 65개 지점의 월별 일사량·경사면 일사량·자료품질을 한 표로 정리했습니다. 파일을 직접 열어도 동작하며 CSV로 내려받을 수 있습니다.">
+<meta name="description" content="기상청 ASOS 65개 지점의 월별 일사량·경사면 일사량·자료품질을 한 표로 정리했습니다. 정렬·검색·필터로 원하는 지점을 찾아볼 수 있습니다.">
 <link rel="stylesheet" href="assets/style.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%277%27 fill=%27%23e08a1e%27/%3E%3Cg stroke=%27%23e08a1e%27 stroke-width=%272.6%27 stroke-linecap=%27round%27%3E%3Cpath d=%27M16 2v4M16 26v4M2 16h4M26 16h4M6 6l3 3M23 23l3 3M26 6l-3 3M9 23l-3 3%27/%3E%3C/g%3E%3C/svg%3E">
 <script>(function(){try{var t=localStorage.getItem("pg-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
@@ -28,7 +28,6 @@
   tbody tr { cursor: pointer; }
   .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
   .toolbar input[type="text"] { width: auto; min-width: 190px; flex: 0 1 240px; }
-  .toolbar .spacer { margin-left: auto; }
 </style>
 </head>
 <body>
@@ -75,9 +74,6 @@
         <option value="10y">전 지점 10년 평균</option>
         <option value="5y">전 지점 최근 5년</option>
       </select>
-      <span class="spacer"></span>
-      <button id="csv">CSV 내려받기</button>
-      <button onclick="window.print()">인쇄 / PDF</button>
     </div>
 
     <div class="tbl-wrap tbl-scroll">
@@ -116,7 +112,6 @@
       </table>
     </div>
     <p class="no-print" style="margin:14px 0 0">
-      <button id="dCsv">이 지점 CSV</button>
       <button id="dClose">닫기</button>
     </p>
   </div>
@@ -314,40 +309,6 @@
     render();
     $('detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
-
-  function download(name, text) {
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' }));
-    a.download = name;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-  }
-
-  $('csv').addEventListener('click', function () {
-    var head = ['지점명','지점코드','위도','경도','관측연수','유효월수','연변동',
-                '기준기간','연간GHI(kWh/m2)','연간POA(kWh/m2)','POA/GHI','등가발전시간(h)','편향판정'];
-    var body = visible().map(function (r) {
-      return [r.n, r.c, r.lat, r.lon, r.obs, r.vm, r.cv === null ? '' : r.cv,
-              r.period === '5y' ? '최근5년' : '10년',
-              r.ghiY.toFixed(1), r.poaY.toFixed(1), r.ratio.toFixed(4),
-              r.hours.toFixed(0), r.bv || ''].join(',');
-    });
-    download('PrimeGrid_전국지점자료.csv', [head.join(',')].concat(body).join('\n'));
-  });
-
-  $('dCsv').addEventListener('click', function () {
-    var r = rows.filter(function (x) { return x.n === selected; })[0];
-    if (!r) return;
-    var head = ['월','수평면일평균(kWh/m2/일)','수평면월합계(kWh/m2)','Kt','확산분율','Rb',
-                '경사면일평균(kWh/m2/일)','경사면월합계(kWh/m2)','POA/GHI'];
-    var body = r.mo.map(function (m, i) {
-      if (!m) return (i + 1) + ',,,,,,,,';
-      return [m.m, m.ghi.toFixed(3), m.gm.toFixed(2), m.kt.toFixed(4), m.fd.toFixed(4),
-              m.rb.toFixed(4), m.poa.toFixed(3), m.poaMonth.toFixed(2),
-              (m.poa / m.ghi).toFixed(4)].join(',');
-    });
-    download('PrimeGrid_' + r.n + '_월별.csv', [head.join(',')].concat(body).join('\n'));
-  });
 
   $('dClose').addEventListener('click', function () {
     $('detail').style.display = 'none'; selected = null; render();

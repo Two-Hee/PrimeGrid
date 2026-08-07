@@ -307,7 +307,6 @@ table.wrap-cells td.mono { line-height: 1.9; word-break: break-word; }
   tbody tr { cursor: pointer; }
   .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
   .toolbar input[type="text"] { width: auto; min-width: 190px; flex: 0 1 240px; }
-  .toolbar .spacer { margin-left: auto; }
 
 /* ── 단일 파일판 전용 ── */
 .tabbar { display: flex; gap: 4px; flex-wrap: wrap; margin-left: auto; }
@@ -385,9 +384,6 @@ table.wrap-cells td.mono { line-height: 1.9; word-break: break-word; }
         <option value="10y">전 지점 10년 평균</option>
         <option value="5y">전 지점 최근 5년</option>
       </select>
-      <span class="spacer"></span>
-      <button id="s-csv">CSV 내려받기</button>
-      <button onclick="window.print()">인쇄 / PDF</button>
     </div>
 
     <div class="tbl-wrap tbl-scroll">
@@ -426,7 +422,6 @@ table.wrap-cells td.mono { line-height: 1.9; word-break: break-word; }
       </table>
     </div>
     <p class="no-print" style="margin:14px 0 0">
-      <button id="s-dCsv">이 지점 CSV</button>
       <button id="s-dClose">닫기</button>
     </p>
   </div>
@@ -1514,40 +1509,6 @@ window.VERIFY_DATA = {"rows":[{"n":"강릉","eng":1647.3,"ref":1647.3,"d":0.0,"h
     render();
     $('detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
-
-  function download(name, text) {
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' }));
-    a.download = name;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-  }
-
-  $('csv').addEventListener('click', function () {
-    var head = ['지점명','지점코드','위도','경도','관측연수','유효월수','연변동',
-                '기준기간','연간GHI(kWh/m2)','연간POA(kWh/m2)','POA/GHI','등가발전시간(h)','편향판정'];
-    var body = visible().map(function (r) {
-      return [r.n, r.c, r.lat, r.lon, r.obs, r.vm, r.cv === null ? '' : r.cv,
-              r.period === '5y' ? '최근5년' : '10년',
-              r.ghiY.toFixed(1), r.poaY.toFixed(1), r.ratio.toFixed(4),
-              r.hours.toFixed(0), r.bv || ''].join(',');
-    });
-    download('PrimeGrid_전국지점자료.csv', [head.join(',')].concat(body).join('\n'));
-  });
-
-  $('dCsv').addEventListener('click', function () {
-    var r = rows.filter(function (x) { return x.n === selected; })[0];
-    if (!r) return;
-    var head = ['월','수평면일평균(kWh/m2/일)','수평면월합계(kWh/m2)','Kt','확산분율','Rb',
-                '경사면일평균(kWh/m2/일)','경사면월합계(kWh/m2)','POA/GHI'];
-    var body = r.mo.map(function (m, i) {
-      if (!m) return (i + 1) + ',,,,,,,,';
-      return [m.m, m.ghi.toFixed(3), m.gm.toFixed(2), m.kt.toFixed(4), m.fd.toFixed(4),
-              m.rb.toFixed(4), m.poa.toFixed(3), m.poaMonth.toFixed(2),
-              (m.poa / m.ghi).toFixed(4)].join(',');
-    });
-    download('PrimeGrid_' + r.n + '_월별.csv', [head.join(',')].concat(body).join('\n'));
-  });
 
   $('dClose').addEventListener('click', function () {
     $('detail').style.display = 'none'; selected = null; render();

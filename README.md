@@ -13,14 +13,14 @@ GitHub Pages를 포함한 어떤 정적 호스팅에도 그대로 올라갑니�
 | `index.html` | 랜딩 — 무엇을 제공하는지, 왜 믿을 수 있는지 |
 | `tools/diagnosis.html` | **발전량 진단** — 월별 실제 발전량 입력 → 지역 기준선 대비 편차, 실측 PR 역산 |
 | `tools/yield.html` | **예상 발전량 계산** — 지역·경사각·방위각·PR → 월별 POA, 30년 발전량, P50/P90 |
-| `stations.html` | **전국 지점 자료** — 65개 지점 요약표(정렬·검색·CSV) + 지점별 월별 상세 |
+| `stations.html` | **전국 지점 자료** — 65개 지점 요약표(정렬·검색·필터) + 지점별 월별 상세 |
 | `method.html` | 데이터 출처·계산식·검증 결과·한계 전문 공개 |
 
 ## 구조
 
 ```
 index.html            랜딩
-stations.html         전국 지점 자료(표·CSV)
+stations.html         전국 지점 자료(표·검색·필터)
 method.html           데이터·계산방법(신뢰 근거)
 tools/
   diagnosis.html      발전량 진단
@@ -133,6 +133,8 @@ python3 -m http.server 8000
 CSS·JS·자료를 전부 인라인해 다른 파일이나 인터넷 없이 그대로 열립니다 (130 KB).
 
 4개 화면을 상단 탭으로 전환합니다: 전국 지점 자료 · 예상 발전량 · 발전량 진단 · 데이터·계산방법.
+
+전국 지점 자료 화면에는 CSV 내려받기·인쇄 버튼을 두지 않았습니다.
 
 ```bash
 python3 build/build_standalone.py     # 원본 페이지들을 합쳐 다시 생성
