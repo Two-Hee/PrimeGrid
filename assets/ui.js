@@ -5,8 +5,14 @@
   var DATA_URL = (document.currentScript && document.currentScript.dataset.root ? document.currentScript.dataset.root : '') + 'data/poa.json';
   var cache = null;
 
+  /**
+   * 데이터 로딩.
+   * data/poa-data.js가 함께 실려 있으면 그것을 쓰고(파일을 직접 열어도 동작),
+   * 없을 때만 poa.json을 fetch한다.
+   */
   function load() {
     if (cache) return Promise.resolve(cache);
+    if (global.POA_DATA) { cache = global.POA_DATA; return Promise.resolve(cache); }
     return fetch(DATA_URL).then(function (r) {
       if (!r.ok) throw new Error('데이터를 불러오지 못했습니다 (' + r.status + ')');
       return r.json();

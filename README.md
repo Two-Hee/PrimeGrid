@@ -13,12 +13,14 @@ GitHub Pages를 포함한 어떤 정적 호스팅에도 그대로 올라갑니�
 | `index.html` | 랜딩 — 무엇을 제공하는지, 왜 믿을 수 있는지 |
 | `tools/diagnosis.html` | **발전량 진단** — 월별 실제 발전량 입력 → 지역 기준선 대비 편차, 실측 PR 역산 |
 | `tools/yield.html` | **예상 발전량 계산** — 지역·경사각·방위각·PR → 월별 POA, 30년 발전량, P50/P90 |
+| `stations.html` | **전국 지점 자료** — 65개 지점 요약표(정렬·검색·CSV) + 지점별 월별 상세 |
 | `method.html` | 데이터 출처·계산식·검증 결과·한계 전문 공개 |
 
 ## 구조
 
 ```
 index.html            랜딩
+stations.html         전국 지점 자료(표·CSV)
 method.html           데이터·계산방법(신뢰 근거)
 tools/
   diagnosis.html      발전량 진단
@@ -30,8 +32,13 @@ assets/
   style.css           디자인 시스템 (라이트/다크 대응, 인쇄 스타일 포함)
 data/
   poa.json            지점별 월평균 GHI·좌표·자료품질·편향판정 (31 KB)
+  poa-data.js         위 JSON을 window.POA_DATA로 감싼 것 (오프라인 열람용)
   verification.json   61개 지점 기준표 대조 결과
+  verification-data.js  위 JSON을 window.VERIFY_DATA로 감싼 것
 ```
+
+`*-data.js`는 `*.json`에서 자동 생성됩니다. 페이지는 이 스크립트가 있으면 그것을 쓰고,
+없을 때만 JSON을 `fetch`합니다 — 덕분에 **웹서버 없이 파일을 직접 열어도 동작**합니다.
 
 ## 계산 방법
 
@@ -109,7 +116,11 @@ HDKR(이방성) 모델은 등방성 대비 연간 **+3.24%**(지점별 +2.3~+3.5
 정적 파일이므로 GitHub Pages에 그대로 배포됩니다.
 저장소 Settings → Pages → Source를 배포할 브랜치의 루트(`/`)로 지정하면 됩니다.
 
-로컬 확인 시에는 `file://`로 열지 말고 웹 서버를 쓰십시오 (JSON을 `fetch`로 읽습니다):
+HTML 파일을 그대로 열어도(`file://`) 동작합니다 — 자료가 `data/*-data.js`에 함께 실려 있습니다.
+`index.html`부터 `data/`, `assets/` 폴더까지 통째로 복사하면 인터넷 없이 쓸 수 있고,
+메일로 보내거나 USB에 담아 배포해도 됩니다.
+
+웹서버로 확인하려면:
 
 ```bash
 python3 -m http.server 8000

@@ -17,6 +17,7 @@
     <nav>
       <a href="tools/diagnosis.html">발전량 진단</a>
       <a href="tools/yield.html">예상 발전량</a>
+      <a href="stations.html">전국 지점 자료</a>
       <a href="method.html" aria-current="page">데이터·계산방법</a>
       <button class="theme-btn" id="themeToggle" type="button">☾</button>
     </nav>
@@ -257,8 +258,11 @@
     </div>
 </footer>
 
+<script src="data/verification-data.js"></script>
 <script>
-fetch('data/verification.json').then(function (r) { return r.json(); }).then(function (v) {
+(window.VERIFY_DATA ? Promise.resolve(window.VERIFY_DATA)
+  : fetch('data/verification.json').then(function (r) { return r.json(); })
+).then(function (v) {
   var s = v.summary;
   document.getElementById('vW').textContent = s.unchanged + '/' + s.unchanged;
   document.getElementById('vMean').textContent = s.mean.toFixed(3) + '%';
