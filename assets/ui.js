@@ -130,42 +130,8 @@
     svg.appendChild(el('line', { x1: P.l, x2: W - P.r, y1: P.t + ih, y2: P.t + ih, stroke: css('--border-strong'), 'stroke-width': 1 }));
   }
 
-  /** 연차별 발전량 감소 선형 차트 */
-  function lineChart(svg, points, opt) {
-    opt = opt || {};
-    var W = 720, H = 220, P = { t: 14, r: 14, b: 30, l: 58 };
-    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    while (svg.firstChild) svg.removeChild(svg.firstChild);
-    if (!points.length) return;
-
-    var max = 0, min = Infinity;
-    points.forEach(function (p) { if (p.y > max) max = p.y; if (p.y < min) min = p.y; });
-    var lo = Math.max(0, min - (max - min) * 0.6), hi = max * 1.02;
-    var iw = W - P.l - P.r, ih = H - P.t - P.b;
-    var X = function (i) { return P.l + iw * i / (points.length - 1 || 1); };
-    var Y = function (v) { return P.t + ih - (v - lo) / (hi - lo || 1) * ih; };
-    var gridC = css('--border'), dimC = css('--text-dim');
-
-    for (var i = 0; i <= 4; i++) {
-      var v = lo + (hi - lo) * i / 4;
-      svg.appendChild(el('line', { x1: P.l, x2: W - P.r, y1: Y(v), y2: Y(v), stroke: gridC, 'stroke-width': 1 }));
-      svg.appendChild(el('text', { x: P.l - 8, y: Y(v) + 4, 'text-anchor': 'end', fill: dimC, 'font-size': 11 }, num(v, 0)));
-    }
-    var d = points.map(function (p, i) { return (i ? 'L' : 'M') + X(i) + ' ' + Y(p.y); }).join(' ');
-    var area = d + ' L' + X(points.length - 1) + ' ' + (P.t + ih) + ' L' + X(0) + ' ' + (P.t + ih) + ' Z';
-    svg.appendChild(el('path', { d: area, fill: opt.color || css('--accent'), opacity: 0.12 }));
-    svg.appendChild(el('path', { d: d, fill: 'none', stroke: opt.color || css('--accent'), 'stroke-width': 2.2, 'stroke-linejoin': 'round' }));
-
-    points.forEach(function (p, i) {
-      if (i % Math.ceil(points.length / 6) === 0 || i === points.length - 1) {
-        svg.appendChild(el('text', { x: X(i), y: H - 10, 'text-anchor': 'middle', fill: dimC, 'font-size': 11 }, p.x));
-      }
-    });
-  }
-
   global.UI = {
     load: load, num: num, pct: pct, signPct: signPct,
-    fillStations: fillStations, barChart: barChart, lineChart: lineChart, css: css
+    fillStations: fillStations, barChart: barChart, css: css
   };
 })(window);

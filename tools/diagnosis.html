@@ -7,6 +7,7 @@
 <meta name="description" content="월별 실제 발전량을 입력하면 기상청 10년 일사량 기준선과 비교해 성능비(PR)를 역산하고 이상 구간을 찾아냅니다.">
 <link rel="stylesheet" href="../assets/style.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%277%27 fill=%27%23e08a1e%27/%3E%3Cg stroke=%27%23e08a1e%27 stroke-width=%272.6%27 stroke-linecap=%27round%27%3E%3Cpath d=%27M16 2v4M16 26v4M2 16h4M26 16h4M6 6l3 3M23 23l3 3M26 6l-3 3M9 23l-3 3%27/%3E%3C/g%3E%3C/svg%3E">
+<script>(function(){try{var t=localStorage.getItem("pg-theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 </head>
 <body>
 
@@ -17,6 +18,7 @@
       <a href="diagnosis.html" aria-current="page">발전량 진단</a>
       <a href="yield.html">예상 발전량</a>
       <a href="../method.html">데이터·계산방법</a>
+      <button class="theme-btn" id="themeToggle" type="button">☾</button>
     </nav>
   </div>
 </header>
@@ -176,6 +178,15 @@
     <div>자료 출처: 기상청 ASOS 일사량 관측자료 (2016–2025)</div>
     <div><a href="../method.html">계산방법</a> · <a href="../method.html#limits">한계</a></div>
   </div>
+    <div class="foot-notice">
+      <p><strong>저작권.</strong> 본 사이트에 게시된 분석 내용, 계산 방법, 산출 자료 및 화면 구성의
+      저작권은 PrimeGrid 운영자에게 있습니다. 무단 복제·배포·상업적 이용을 금합니다.
+      원자료인 기상청 ASOS 관측자료의 저작권은 기상청에 있습니다.</p>
+      <p style="margin-bottom:0"><strong>정확도.</strong> 게시된 모든 수치는 관측 기후값과 계산 모델에 따른
+      <strong>추정값이며 오차가 있습니다.</strong> 음영·오염·적설·모듈온도·출력제한 등은 반영되어 있지 않아
+      실제 발전량과 차이가 날 수 있습니다. 본 자료는 참고용이며 발전소 설계·감정·금융 판단을
+      대체하지 않습니다. 이용자의 의사결정에 따른 결과에 대해 운영자는 책임을 지지 않습니다.</p>
+    </div>
 </footer>
 
 <script src="../assets/poa.js"></script>
@@ -361,5 +372,6 @@
   });
 })();
 </script>
+<script src="../assets/theme.js"></script>
 </body>
 </html>

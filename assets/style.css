@@ -27,6 +27,10 @@
           "Malgun Gothic", "Noto Sans KR", sans-serif;
 }
 
+/* 다크 배색 토큰.
+   1) OS가 다크이고 사용자가 라이트를 고르지 않은 경우
+   2) 사용자가 토글로 다크를 직접 고른 경우
+   두 블록의 값은 동일하게 유지할 것. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #10151b;
@@ -50,6 +54,29 @@
     --bad-soft: #2c1917;
     --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
   }
+}
+
+:root[data-theme="dark"] {
+    --bg: #10151b;
+    --bg-soft: #161d25;
+    --bg-sunk: #1c242e;
+    --card: #171f28;
+    --border: #2a3542;
+    --border-strong: #3a4756;
+    --text: #e6ebf1;
+    --text-mid: #a9b5c2;
+    --text-dim: #7f8c9a;
+    --accent: #f0a54a;
+    --accent-soft: #2e2213;
+    --brand: #7cb6da;
+    --brand-soft: #16242e;
+    --ok: #56c793;
+    --ok-soft: #14291f;
+    --warn: #dfa459;
+    --warn-soft: #2b2113;
+    --bad: #e8817a;
+    --bad-soft: #2c1917;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
 }
 
 * { box-sizing: border-box; }
@@ -101,6 +128,12 @@ small { font-size: .82rem; }
 }
 .site-head nav a:hover { color: var(--text); }
 .site-head nav a[aria-current="page"] { color: var(--text); border-bottom-color: var(--accent); }
+.theme-btn {
+  padding: 0; width: 32px; height: 32px; line-height: 1; font-size: .95rem;
+  border-radius: 50%; border: 1px solid var(--border); background: var(--bg-soft);
+  color: var(--text-mid); display: inline-flex; align-items: center; justify-content: center;
+}
+.theme-btn:hover { border-color: var(--accent); color: var(--text); }
 
 /* ---------- hero ---------- */
 .hero { padding: 56px 0 40px; border-bottom: 1px solid var(--border); }
@@ -215,6 +248,12 @@ table.wrap-cells td.mono { line-height: 1.9; word-break: break-word; }
 }
 .site-foot .wrap { display: flex; gap: 28px; flex-wrap: wrap; justify-content: space-between; }
 .site-foot a { color: var(--text-mid); }
+.foot-notice {
+  max-width: 1080px; margin: 22px auto 0; padding: 16px 20px 0;
+  border-top: 1px solid var(--border); font-size: .78rem; line-height: 1.6;
+}
+.foot-notice p { margin: 0 0 8px; }
+.foot-notice strong { color: var(--text-mid); }
 
 .src {
   font-size: .78rem; color: var(--text-dim); border-top: 1px dashed var(--border);
@@ -229,7 +268,10 @@ table.wrap-cells td.mono { line-height: 1.9; word-break: break-word; }
 /* ---------- print ---------- */
 @media print {
   :root { --bg: #fff; --card: #fff; --bg-soft: #fafafa; --text: #000; --shadow: none; }
-  .site-head, .site-foot, .no-print { display: none !important; }
+  /* 저작권·정확도 고지는 인쇄본(진단서 PDF)에도 반드시 남긴다 */
+  .site-head, .site-foot > .wrap, .no-print { display: none !important; }
+  .site-foot { margin-top: 20px; padding-bottom: 0; }
+  .foot-notice { border-top: 1px solid #999; font-size: 8.5pt; }
   .card { break-inside: avoid; box-shadow: none; }
   body { font-size: 11pt; }
   a { text-decoration: none; color: #000; }
