@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>예상 발전량 계산 — PrimeGrid</title>
+<meta name="description" content="지역·경사각·방위각별 경사면 일사량과 30년 예상 발전량을 기상청 10년 관측자료로 계산합니다. P50/P90 시나리오 포함.">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%277%27 fill=%27%23e08a1e%27/%3E%3Cg stroke=%27%23e08a1e%27 stroke-width=%272.6%27 stroke-linecap=%27round%27%3E%3Cpath d=%27M16 2v4M16 26v4M2 16h4M26 16h4M6 6l3 3M23 23l3 3M26 6l-3 3M9 23l-3 3%27/%3E%3C/g%3E%3C/svg%3E">
+</head>
+<body>
+
+<header class="site-head no-print">
+  <div class="wrap">
+    <a class="logo" href="../index.html"><span class="dot"></span>PrimeGrid</a>
+    <nav>
+      <a href="diagnosis.html">발전량 진단</a>
+      <a href="yield.html" aria-current="page">예상 발전량</a>
+      <a href="../method.html">데이터·계산방법</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1 style="margin-top:32px">예상 발전량 계산</h1>
+  <p class="muted" style="max-width:64ch">
+    지역과 설비 조건을 넣으면 기상청 10년 일사량 관측자료로 월별 경사면 일사량과
+    분석기간 발전량을 계산합니다. 모듈 열화를 반영하고 P50/P90 시나리오를 함께 제시합니다.
+  </p>
+
+  <div class="grid c2" style="align-items:start;margin-top:24px">
+
+    <div class="card no-print">
+      <h3 class="mt0">입력</h3>
+
+      <div class="field">
+        <label for="st">기상관측지점</label>
+        <select id="st"></select>
+        <div class="hint" id="stInfo"></div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="kw">설비용량 (kWdc)</label>
+          <input type="number" id="kw" value="1000" min="1" step="1">
+        </div>
+        <div class="field">
+          <label for="pr">시스템 PR</label>
+          <input type="number" id="pr" value="0.85" min="0.5" max="1" step="0.01">
+          <div class="hint">인버터·배선·온도 손실</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="slider-head"><label for="beta" style="margin:0">경사각 β</label><b id="betaV">30°</b></div>
+        <input type="range" id="beta" min="0" max="60" value="30" step="1">
+        <div class="hint" id="optTilt"></div>
+      </div>
+      <div class="field">
+        <div class="slider-head"><label for="azim" style="margin:0">방위각 A</label><b id="azimV">180° (정남)</b></div>
+        <input type="range" id="azim" min="90" max="270" value="180" step="5">
+      </div>
+      <div class="field">
+        <div class="slider-head"><label for="rho" style="margin:0">지면반사율 ρg</label><b id="rhoV">0.20</b></div>
+        <input type="range" id="rho" min="0.1" max="0.5" value="0.2" step="0.01">
+        <div class="hint">일반 토지 0.15~0.25 · 적설 시 상승</div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="init">1년차 초기 저하율</label>
+          <input type="number" id="init" value="0.015" min="0" max="0.05" step="0.001">
+        </div>
+        <div class="field">
+          <label for="ann">연간 저하율</label>
+          <input type="number" id="ann" value="0.0033" min="0" max="0.02" step="0.0001">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="years">분석기간 (년)</label>
+          <input type="number" id="years" value="25" min="1" max="30" step="1">
+        </div>
+        <div class="field">
+          <label for="period">기준 기간</label>
+          <select id="period">
+            <option value="10y">10년 평균 (2016–2025)</option>
+            <option value="5y">최근 5년 (2021–2025)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <h3 class="mt0">결과 요약</h3>
+        <div class="grid c2" style="gap:12px">
+          <div class="stat hi">
+            <div class="k">연간 발전량 (1년차, P50)</div>
+            <div class="v" id="rY1">—</div>
+            <div class="sub" id="rY1Sub">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">연간 경사면 일사량</div>
+            <div class="v" id="rPoa">—</div>
+            <div class="sub" id="rPoaSub">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">P90 (보수 시나리오)</div>
+            <div class="v" id="rP90">—</div>
+            <div class="sub">10년 중 9년은 이 값 이상</div>
+          </div>
+          <div class="stat">
+            <div class="k">분석기간 누적</div>
+            <div class="v" id="rCum">—</div>
+            <div class="sub" id="rCumSub">—</div>
+          </div>
+        </div>
+        <div class="note" id="unc" style="margin-bottom:0"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <h3 class="mt0">월별 경사면 일사량과 발전량</h3>
+        <svg class="chart" id="chartM" role="img" aria-label="월별 예상 발전량"></svg>
+        <div class="legend"><span><i style="background:var(--accent)"></i>월 발전량 (kWh, 1년차)</span></div>
+      </div>
+
+      <div class="card">
+        <h3 class="mt0">연차별 발전량 추이</h3>
+        <svg class="chart" id="chartY" role="img" aria-label="연차별 발전량 추이"></svg>
+        <div class="legend">
+          <span><i style="background:var(--brand)"></i>연간 발전량 (kWh) — 모듈 열화 반영</span>
+          <span class="muted">※ 감소폭이 보이도록 세로축을 0이 아닌 값에서 시작합니다</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 class="mt0">월별 상세</h3>
+    <div class="tbl-wrap">
+      <table id="tblM">
+        <thead><tr>
+          <th>월</th><th>수평면 일사량<br>(kWh/m²/일)</th><th>청명도 Kt</th><th>확산분율</th>
+          <th>Rb</th><th>경사면 일사량<br>(kWh/m²/일)</th><th>월 합계<br>(kWh/m²)</th>
+          <th>예상 발전량<br>(kWh, 1년차)</th><th>등가발전시간<br>(h/일)</th>
+        </tr></thead>
+        <tbody></tbody><tfoot></tfoot>
+      </table>
+    </div>
+    <div class="src" id="src"></div>
+    <p class="no-print" style="margin:14px 0 0"><button onclick="window.print()">인쇄 / PDF 저장</button></p>
+  </div>
+
+  <section class="no-print">
+    <h2>수치를 해석할 때</h2>
+    <div class="note warn">
+      <p><strong>P50은 평균값이지 보증값이 아닙니다.</strong> 절반의 해는 이 값을 밑돕니다.
+      금융 검토에는 P90을 함께 보십시오.</p>
+      <p style="margin-bottom:0"><strong>계산에 포함되지 않은 손실:</strong> 주변 음영과 모듈 열간 음영,
+      표면 오염, 적설, 입사각 손실(IAM), 계통 출력제한. 실제 사업에서는 이 항목들이
+      추가로 수 %를 깎습니다. PR 값을 이 손실까지 포함해 보수적으로 잡으십시오.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <div>자료 출처: 기상청 ASOS 일사량 관측자료 (2016–2025)</div>
+    <div><a href="../method.html">계산방법</a> · <a href="../method.html#limits">한계</a></div>
+  </div>
+</footer>
+
+<script src="../assets/poa.js"></script>
+<script src="../assets/ui.js" data-root="../"></script>
+<script>
+(function () {
+  'use strict';
+  var D = null, S = null;
+  var $ = function (id) { return document.getElementById(id); };
+  var ids = ['kw','pr','beta','azim','rho','init','ann','years','period'];
+
+  function opts() {
+    return { beta: +$('beta').value, azim: +$('azim').value, rho: +$('rho').value, period: $('period').value };
+  }
+
+  /** 현재 방위각에서 연간 POA를 최대화하는 경사각 탐색 */
+  function bestTilt(o) {
+    var best = 0, bv = -1;
+    for (var b = 0; b <= 60; b++) {
+      var a = POA.annual(POA.monthly(S, { beta: b, azim: o.azim, rho: o.rho, period: o.period }), D.days);
+      if (a.poa > bv) { bv = a.poa; best = b; }
+    }
+    return { tilt: best, poa: bv };
+  }
+
+  function render() {
+    if (!S) return;
+    var o = opts();
+    $('betaV').textContent = o.beta + '°';
+    $('azimV').textContent = o.azim + '°' + (o.azim === 180 ? ' (정남)' : o.azim < 180 ? ' (남동)' : ' (남서)');
+    $('rhoV').textContent = o.rho.toFixed(2);
+
+    var rows = POA.monthly(S, o);
+    var kw = Math.max(1, +$('kw').value || 1);
+    var y = POA.yieldTable(rows, D.days, {
+      kw: kw, pr: +$('pr').value, initLoss: +$('init').value,
+      annLoss: +$('ann').value, years: Math.max(1, Math.min(30, +$('years').value || 1))
+    });
+    var ann = POA.annual(rows, D.days);
+    var unc = POA.uncertainty(S);
+    var y1 = y.byYear[0], last = y.byYear[y.byYear.length - 1];
+
+    $('rY1').innerHTML = UI.num(y1.kwh, 0) + '<span class="u">kWh</span>';
+    $('rY1Sub').textContent = UI.num(y1.kwh / kw, 0) + ' kWh/kW · 등가 ' + UI.num(y1.hours, 0) + ' h';
+    $('rPoa').innerHTML = UI.num(ann.poa, 0) + '<span class="u">kWh/m²</span>';
+    $('rPoaSub').textContent = '수평면 대비 ' + UI.signPct(ann.ratio - 1) +
+      (ann.months < 12 ? ' · 유효 ' + ann.months + '개월' : '');
+    $('rP90').innerHTML = UI.num(y1.kwh * unc.p90, 0) + '<span class="u">kWh</span>';
+    $('rCum').innerHTML = UI.num(last.cum / 1000, 0) + '<span class="u">MWh</span>';
+    $('rCumSub').textContent = last.year + '년간 · 최종연차 성능 ' + UI.pct(last.factor);
+
+    var bt = bestTilt(o);
+    $('optTilt').innerHTML = '방위각 ' + o.azim + '°에서 연간 일사량 최대 경사각은 <strong>' +
+      bt.tilt + '°</strong> (' + UI.num(bt.poa, 0) + ' kWh/m²) · 현재 설정은 그 대비 ' +
+      UI.signPct(ann.poa / bt.poa - 1);
+
+    $('unc').innerHTML = '<strong>불확실성:</strong> 기후 연변동 ±' + (unc.climate * 100).toFixed(1) +
+      '% (해당 지점 ' + (S.yrs || 0) + '개년 실측), 계산모델 ±' + (unc.model * 100).toFixed(0) +
+      '% → 합성 ±' + (unc.total * 100).toFixed(1) + '%. ' +
+      'P90 = P50 × ' + unc.p90.toFixed(3) + ', P75 = P50 × ' + unc.p75.toFixed(3) + '.';
+
+    // 월별 표
+    var tb = $('tblM').querySelector('tbody'), tf = $('tblM').querySelector('tfoot');
+    tb.innerHTML = ''; tf.innerHTML = '';
+    var vals = [], sumKwh = 0, sumPoa = 0;
+    rows.forEach(function (r, i) {
+      var tr = document.createElement('tr');
+      if (!r) {
+        tr.innerHTML = '<td>' + POA.MONTHS[i] + '</td><td colspan="8" class="muted">관측자료 없음</td>';
+        tb.appendChild(tr); vals.push(NaN); return;
+      }
+      var mm = y.byMonth[i];
+      vals.push(mm.kwh); sumKwh += mm.kwh; sumPoa += mm.poa;
+      tr.innerHTML = '<td>' + r.label + '</td>' +
+        '<td>' + r.ghi.toFixed(2) + '</td>' +
+        '<td>' + r.kt.toFixed(3) + (r.ktOut ? ' <span class="badge warn">범위외</span>' : '') + '</td>' +
+        '<td>' + r.fd.toFixed(3) + '</td>' +
+        '<td>' + r.rb.toFixed(3) + '</td>' +
+        '<td>' + r.poa.toFixed(2) + '</td>' +
+        '<td>' + UI.num(mm.poa, 1) + '</td>' +
+        '<td>' + UI.num(mm.kwh, 0) + '</td>' +
+        '<td>' + mm.hday.toFixed(2) + '</td>';
+      tb.appendChild(tr);
+    });
+    tf.innerHTML = '<tr><td>연간</td><td colspan="5"></td><td>' + UI.num(sumPoa, 0) +
+      '</td><td>' + UI.num(sumKwh, 0) + '</td><td>' + UI.num(y1.hours / 365, 2) + '</td></tr>';
+
+    UI.barChart($('chartM'), POA.MONTHS, [{ name: '발전량', values: vals, color: UI.css('--accent') }], { dp: 0 });
+    UI.lineChart($('chartY'), y.byYear.map(function (r) { return { x: r.year + '년', y: r.kwh }; }),
+      { color: UI.css('--brand') });
+
+    $('src').innerHTML =
+      '기상청 ASOS <strong>' + S.n + '</strong> 지점(' + S.lat + '°N, ' + S.lon + '°E) · ' +
+      ($('period').value === '5y' ? '2021–2025 최근 5년' : D.meta.period + ' 10년') + ' 평균 · ' +
+      D.meta.model + ' · 15분 간격 태양벡터 96구간 적분 · ' +
+      '경사각 ' + o.beta + '° / 방위각 ' + o.azim + '° / 지면반사율 ' + o.rho.toFixed(2) + ' · PR ' + $('pr').value +
+      ' · 모듈 열화 초기 ' + (+$('init').value * 100).toFixed(1) + '% + 연 ' + (+$('ann').value * 100).toFixed(2) + '%<br>' +
+      '음영·오염·적설·IAM·모듈온도·출력제한은 반영되지 않았습니다. ' +
+      '자료 상태: 관측 ' + S.obs + '년 / 유효 ' + S.vm + '개월' + (S.vm < 12 ? ' — <strong>참고용</strong>' : '');
+  }
+
+  ids.forEach(function (id) { $(id).addEventListener('input', render); $(id).addEventListener('change', render); });
+  $('st').addEventListener('change', function () {
+    S = D.st.find(function (x) { return x.n === $('st').value; });
+    var bits = ['관측 ' + S.obs + '년', '유효 ' + S.vm + '개월'];
+    if (S.cv && S.yrs >= 3) bits.push('연변동 ±' + (S.cv * 100).toFixed(1) + '%');
+    $('stInfo').textContent = '위도 ' + S.lat + '°N · ' + bits.join(' · ');
+    render();
+  });
+
+  UI.load().then(function (data) {
+    D = data;
+    UI.fillStations($('st'), D.st, '서울');
+    $('st').dispatchEvent(new Event('change'));
+  }).catch(function (e) {
+    $('stInfo').innerHTML = '<span style="color:var(--bad)">' + e.message +
+      ' — 이 페이지는 웹 서버에서 열어야 합니다.</span>';
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>데이터·계산방법 — PrimeGrid</title>
+<meta name="description" content="사용한 원자료, 계산식, 검증 결과와 한계를 전부 공개합니다.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%277%27 fill=%27%23e08a1e%27/%3E%3Cg stroke=%27%23e08a1e%27 stroke-width=%272.6%27 stroke-linecap=%27round%27%3E%3Cpath d=%27M16 2v4M16 26v4M2 16h4M26 16h4M6 6l3 3M23 23l3 3M26 6l-3 3M9 23l-3 3%27/%3E%3C/g%3E%3C/svg%3E">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="logo" href="index.html"><span class="dot"></span>PrimeGrid</a>
+    <nav>
+      <a href="tools/diagnosis.html">발전량 진단</a>
+      <a href="tools/yield.html">예상 발전량</a>
+      <a href="method.html" aria-current="page">데이터·계산방법</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap narrow">
+  <h1 style="margin-top:32px">데이터와 계산방법</h1>
+  <p class="lead muted">
+    이 사이트의 모든 수치가 어디에서 나왔는지, 어떤 식으로 계산했는지,
+    어디까지 믿을 수 있는지를 적어둔 문서입니다.
+  </p>
+
+  <h2 id="data">1. 원자료</h2>
+  <table class="wrap-cells">
+    <tbody>
+      <tr><td><strong>출처</strong></td><td style="text-align:left">기상청 기상자료개방포털 ASOS 일사량 관측자료 (합계 일사량)</td></tr>
+      <tr><td><strong>기간</strong></td><td style="text-align:left">2016-01-01 ~ 2025-12-31 (10년)</td></tr>
+      <tr><td><strong>자료량</strong></td><td style="text-align:left">일별 관측 177,818건</td></tr>
+      <tr><td><strong>지점</strong></td><td style="text-align:left">전국 65개소 (이 중 12개월 자료 완비 62개소)</td></tr>
+      <tr><td><strong>좌표</strong></td><td style="text-align:left">기상청 현재/최신 대표 지점좌표</td></tr>
+    </tbody>
+  </table>
+
+  <p>월 대표값은 <strong>해당 월의 유효 일평균</strong>입니다. 관측값이 0인 날(계측 결측으로
+  판단되는 57건)은 평균에서 제외했습니다. 관측 이력이 짧은 지점은 지점 선택 화면에
+  <em>부분 자료</em>로 표시하고, 결과에도 참고용임을 명시합니다.</p>
+
+  <div class="note">
+    <strong>계기 편향 주의.</strong> 일사계는 교체·교정 이력에 따라 관측값이 계단식으로 변할 수
+    있습니다. 10년 평균과 최근 5년 평균이 크게 다른 지점은 이 영향을 의심해야 합니다.
+    도구에서 두 기간을 모두 선택할 수 있게 한 이유입니다.
+  </div>
+
+  <h2 id="calc">2. 계산식</h2>
+  <p>수평면 일사량(GHI)을 경사면 일사량(POA)으로 변환합니다. 순서는 다음과 같습니다.</p>
+
+  <h3>2.1 태양기하</h3>
+  <div class="tbl-wrap"><table class="wrap-cells">
+    <thead><tr><th>단계</th><th style="text-align:left">식</th></tr></thead>
+    <tbody>
+      <tr><td>연중각</td><td style="text-align:left" class="mono">B = 2π(n−1)/365, n = 월 대표일 DOY</td></tr>
+      <tr><td>지구–태양거리</td><td style="text-align:left" class="mono">E₀ = 1.000110 + 0.034221cosB + 0.001280sinB + 0.000719cos2B + 0.000077sin2B</td></tr>
+      <tr><td>태양적위</td><td style="text-align:left" class="mono">δ = 0.006918 − 0.399912cosB + 0.070257sinB − 0.006758cos2B + 0.000907sin2B − 0.002697cos3B + 0.001480sin3B</td></tr>
+      <tr><td>일몰시각각</td><td style="text-align:left" class="mono">ω<sub>s</sub> = acos(−tanφ·tanδ)</td></tr>
+      <tr><td>대기권외 일사량</td><td style="text-align:left" class="mono">H₀ = (24·60/π)·G<sub>sc</sub>·E₀·[cosφ cosδ sinω<sub>s</sub> + ω<sub>s</sub> sinφ sinδ]</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted"><small>G<sub>sc</sub> = 0.0820 MJ/m²/min. H₀는 MJ/m²/day로 나오므로
+  <strong>3.6으로 나누어 kWh/m²/day로 변환</strong>합니다. 이 단위 변환을 빠뜨리면 청명도지수 Kt가
+  실제의 약 1/3.6로 계산되어 확산분율이 완전히 어긋납니다.</small></p>
+
+  <p>월 대표일(DOY)은 Klein의 월평균 대표일을 씁니다:
+  <span class="mono">17, 47, 75, 105, 135, 162, 198, 228, 258, 288, 318, 344</span></p>
+
+  <h3>2.2 직달·산란 분리</h3>
+  <p class="mono">Kt = H / H₀</p>
+  <p>확산분율은 Erbs <strong>월평균</strong> 상관식을 씁니다. 일별 상관식이 아닙니다 —
+  입력이 월평균 일사량이므로 월평균용 계수를 써야 합니다.</p>
+  <div class="tbl-wrap"><table class="wrap-cells">
+    <thead><tr><th>조건</th><th style="text-align:left">H<sub>d</sub>/H</th></tr></thead>
+    <tbody>
+      <tr><td>ω<sub>s</sub> ≤ 81.4°</td><td style="text-align:left" class="mono">1.391 − 3.560K<sub>t</sub> + 4.189K<sub>t</sub>² − 2.137K<sub>t</sub>³</td></tr>
+      <tr><td>ω<sub>s</sub> &gt; 81.4°</td><td style="text-align:left" class="mono">1.311 − 3.022K<sub>t</sub> + 3.427K<sub>t</sub>² − 1.821K<sub>t</sub>³</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted"><small>적용범위는 K<sub>t</sub> 0.30~0.80입니다. 이 범위를 벗어난 달은
+  도구의 월별 표에 <span class="badge warn">범위외</span>로 표시합니다.</small></p>
+
+  <h3>2.3 직달 기하계수 R<sub>b</sub></h3>
+  <p>하루를 <strong>15분 96구간</strong>으로 나누고, 태양고도가 양수인 구간만 적분합니다.</p>
+  <p class="mono">
+    Sun<sub>U</sub> = sinφ sinδ + cosφ cosδ cosω<br>
+    Sun<sub>E</sub> = −cosδ sinω<br>
+    Sun<sub>N</sub> = sinδ cosφ − cosδ sinφ cosω
+  </p>
+  <p>모듈 법선벡터는 방위각 A(북 0° / 동 90° / 남 180° / 서 270°) 기준으로</p>
+  <p class="mono">n<sub>E</sub> = sinβ sinA,  n<sub>N</sub> = sinβ cosA,  n<sub>U</sub> = cosβ</p>
+  <p class="mono">
+    cos(AOI) = Sun<sub>E</sub>n<sub>E</sub> + Sun<sub>N</sub>n<sub>N</sub> + Sun<sub>U</sub>n<sub>U</sub><br>
+    R<sub>b</sub> = Σ max(cos AOI, 0) / Σ Sun<sub>U</sub>
+  </p>
+
+  <h3>2.4 경사면 일사량 합산</h3>
+  <p class="mono" style="font-size:1rem">
+    POA = H<sub>b</sub>·R<sub>b</sub> + H<sub>d</sub>·(1+cosβ)/2 + H·ρ<sub>g</sub>·(1−cosβ)/2
+  </p>
+  <p>차례로 직달, 등방성 천공산란, 등방성 지면반사입니다.
+  등방성(Liu–Jordan) 모델은 단순하고 투명하지만 원일광(circumsolar)과 수평선 밝기를
+  반영하지 않아 <strong>맑은 날 경사면 일사량을 다소 낮게</strong> 봅니다.
+  이방성 모델(HDKR/Perez)로 계산하면 통상 3~4% 높게 나옵니다. 이 사이트는
+  <em>보수적인 쪽</em>인 등방성 값을 기본으로 씁니다.</p>
+
+  <h3>2.5 발전량</h3>
+  <p class="mono">발전량 = 설비용량(kWdc) × POA(kWh/m²) × PR × 모듈 성능계수</p>
+  <p class="mono">
+    1년차 성능계수 = 1 − 초기저하율<br>
+    n년차 성능계수 = (1 − 초기저하율) × (1 − 연간저하율)<sup>(n−1)</sup>
+  </p>
+  <p class="muted"><small>기본값은 초기 1.5%, 연 0.33%입니다. 모듈 보증서의 값으로 바꿔 쓰십시오.</small></p>
+
+  <h2 id="verify">3. 검증</h2>
+  <p>이 사이트의 계산 엔진을 원본 산출표의 <strong>독립 재계산 기준표</strong>와 비교했습니다.
+  기본 조건(경사각 30°, 방위각 180°, 지면반사율 0.2, 10년 평균, 등방성 천공)에서
+  연간 POA를 지점별로 대조한 결과입니다.</p>
+
+  <div class="grid c4" style="margin:18px 0">
+    <div class="stat hi"><div class="k">비교 지점</div><div class="v" id="vN">—</div></div>
+    <div class="stat"><div class="k">평균 오차</div><div class="v" id="vMean">—</div></div>
+    <div class="stat"><div class="k">최대 오차</div><div class="v" id="vMax">—</div></div>
+    <div class="stat"><div class="k">0.5% 이내</div><div class="v" id="vW">—</div></div>
+  </div>
+
+  <div class="tbl-wrap" style="max-height:420px;overflow-y:auto">
+    <table id="vTbl">
+      <thead><tr>
+        <th>지점</th><th>본 엔진<br>(kWh/m²)</th><th>기준표<br>(kWh/m²)</th><th>편차</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <p class="muted"><small>편차가 1%를 넘는 소수 지점은 부분 결측 월의 평균 처리 방식 차이에서
+  비롯됩니다. 해당 지점은 도구에서도 자료 상태를 함께 표시합니다.</small></p>
+
+  <div class="note ok">
+    <strong>검증이 뜻하는 것과 뜻하지 않는 것.</strong> 이 표는 계산 <em>구현</em>이 정확하다는
+    확인입니다. 모델이 현실을 얼마나 맞히는지는 별개 문제이며, 그것은 아래 한계에 적었습니다.
+  </div>
+
+  <h2 id="uncert">4. 불확실성</h2>
+  <p>예상 발전량은 단일 값이 아니라 분포입니다. 두 가지 불확실성을 독립으로 보고 합성합니다.</p>
+  <ul>
+    <li><strong>기후 연변동</strong> — 해가 바뀌면 일사량이 달라집니다. 지점별로 완전 관측된
+      해들의 연간 일사량 표준편차를 그대로 씁니다. 전국 중앙값은 <strong>±3.7%</strong>입니다.</li>
+    <li><strong>모델 불확실성</strong> — 월평균 기후값 + Erbs + 등방성 조합의 구조적 오차로
+      <strong>±5%</strong>를 잡습니다.</li>
+  </ul>
+  <p class="mono">σ = √(σ<sub>기후</sub>² + σ<sub>모델</sub>²),  P90 = P50 × (1 − 1.282σ),  P75 = P50 × (1 − 0.674σ)</p>
+  <p>P50은 절반의 해가 밑도는 값입니다. 금융 검토라면 P90을 함께 보십시오.</p>
+
+  <h2 id="limits">5. 한계 — 계산에 들어있지 않은 것</h2>
+  <div class="note warn">
+    <ul style="margin:0;padding-left:1.2em">
+      <li><strong>음영</strong> — 지평선, 주변 건물·산지, 모듈 열간 상호음영 모두 미반영</li>
+      <li><strong>오염·적설</strong> — 모듈 표면 상태에 따른 손실 미반영</li>
+      <li><strong>모듈 온도</strong> — 여름철 출력 저하는 PR에 뭉뚱그려져 있을 뿐 별도 모델 없음</li>
+      <li><strong>입사각 손실(IAM)</strong> — 유리면 반사 손실 미반영</li>
+      <li><strong>계통 출력제한</strong> — curtailment 미반영</li>
+      <li><strong>특정 연도</strong> — 월평균 기후값 기반이므로 "2024년 발전량"을 맞히지 못합니다</li>
+      <li><strong>추적식</strong> — 고정식 모듈 전제. 추적식에는 적용 불가</li>
+      <li><strong>지점–현장 거리</strong> — 관측지점과 발전소가 멀수록 오차가 커집니다</li>
+    </ul>
+  </div>
+  <p>이 항목들은 실제 발전량을 <strong>낮추는 방향</strong>으로 작용합니다.
+  따라서 도구가 내놓는 기준선은 <em>이상적인 조건에서의 상한에 가까운 값</em>으로 읽는 것이
+  안전합니다. 진단 결과가 기준선을 조금 밑도는 것은 흔한 일입니다.</p>
+
+  <h2 id="use">6. 이용 조건</h2>
+  <p>이 분석은 참고자료이며 발전소 설계·감정·금융 판단을 대체하지 않습니다.
+  결과에 근거한 의사결정의 책임은 이용자에게 있습니다.
+  원자료 저작권은 기상청에 있으며, 출처 표시 조건으로 제공되는 공공데이터입니다.</p>
+
+  <div class="src">
+    데이터셋: <a href="data/poa.json">poa.json</a> ·
+    검증표: <a href="data/verification.json">verification.json</a> ·
+    계산 엔진: <a href="assets/poa.js">poa.js</a><br>
+    기상청 기상자료개방포털 <a href="https://data.kma.go.kr">data.kma.go.kr</a>
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <div>자료 출처: 기상청 ASOS 일사량 관측자료 (2016–2025)</div>
+    <div><a href="index.html">홈</a></div>
+  </div>
+</footer>
+
+<script>
+fetch('data/verification.json').then(function (r) { return r.json(); }).then(function (v) {
+  document.getElementById('vN').textContent = v.summary.n + '개';
+  document.getElementById('vMean').textContent = v.summary.mean + '%';
+  document.getElementById('vMax').textContent = v.summary.max + '%';
+  document.getElementById('vW').textContent = v.summary.within05 + '/' + v.summary.n;
+  var tb = document.querySelector('#vTbl tbody');
+  v.rows.forEach(function (r) {
+    var cls = Math.abs(r.d10) <= 0.5 ? 'ok' : Math.abs(r.d10) <= 1 ? 'warn' : 'bad';
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + r.n + '</td><td>' + r.c10.toFixed(1) + '</td><td>' + r.e10.toFixed(1) +
+      '</td><td><span class="badge ' + cls + '">' + (r.d10 >= 0 ? '+' : '') + r.d10.toFixed(2) + '%</span></td>';
+    tb.appendChild(tr);
+  });
+}).catch(function () {
+  document.querySelector('#vTbl tbody').innerHTML =
+    '<tr><td colspan="4" class="muted">검증표를 불러오려면 웹 서버에서 열어야 합니다.</td></tr>';
+});
+</script>
+</body>
+</html>

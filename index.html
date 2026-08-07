@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PrimeGrid — 태양광 발전량 분석</title>
+<meta name="description" content="기상청 ASOS 10년 일사량 관측자료 기반 태양광 경사면 일사량·예상 발전량 분석. 계산식과 검증 결과를 모두 공개합니다.">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%277%27 fill=%27%23e08a1e%27/%3E%3Cg stroke=%27%23e08a1e%27 stroke-width=%272.6%27 stroke-linecap=%27round%27%3E%3Cpath d=%27M16 2v4M16 26v4M2 16h4M26 16h4M6 6l3 3M23 23l3 3M26 6l-3 3M9 23l-3 3%27/%3E%3C/g%3E%3C/svg%3E">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="logo" href="index.html"><span class="dot"></span>PrimeGrid</a>
+    <nav>
+      <a href="tools/diagnosis.html">발전량 진단</a>
+      <a href="tools/yield.html">예상 발전량</a>
+      <a href="method.html">데이터·계산방법</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow">기상청 ASOS 관측자료 기반</div>
+    <h1>내 태양광 발전소는<br>제대로 발전하고 있는가?</h1>
+    <p class="lead">
+      전국 65개 기상관측지점의 <strong>10년치 일사량 실측자료</strong>로
+      내 발전소가 있어야 할 발전량을 계산하고, 실제 발전량과 비교합니다.
+      가정값이 아니라 관측값에서 출발하며, 계산식과 검증 결과를 전부 공개합니다.
+    </p>
+    <p style="margin-top:22px">
+      <a class="btn primary" href="tools/diagnosis.html">발전량 진단 시작하기</a>
+      <a class="btn" href="tools/yield.html">예상 발전량 계산</a>
+    </p>
+  </div>
+</section>
+
+<main class="wrap">
+
+  <section style="margin-top:36px">
+    <div class="grid c4">
+      <div class="stat">
+        <div class="k">관측자료</div>
+        <div class="v">177,818<span class="u">일</span></div>
+        <div class="sub">일별 합계 일사량</div>
+      </div>
+      <div class="stat">
+        <div class="k">관측지점</div>
+        <div class="v">65<span class="u">개소</span></div>
+        <div class="sub">전국 기상청 ASOS</div>
+      </div>
+      <div class="stat">
+        <div class="k">관측기간</div>
+        <div class="v">10<span class="u">년</span></div>
+        <div class="sub">2016 ~ 2025</div>
+      </div>
+      <div class="stat hi">
+        <div class="k">검증 오차</div>
+        <div class="v">0.14<span class="u">%</span></div>
+        <div class="sub">독립 재계산 대비 평균</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>두 가지 분석 도구</h2>
+    <div class="grid c2">
+      <a class="card link" href="tools/diagnosis.html">
+        <span class="tag">발전소 소유자용</span>
+        <h3>발전량 진단</h3>
+        <p class="muted" style="margin-bottom:0">
+          한전 검침 내역의 월별 발전량 12개월치를 입력하면,
+          같은 지역·같은 설비 조건에서 <strong>있어야 할 발전량</strong>과 비교합니다.
+          실측 성능비(PR)를 역산하고, 어느 달에 얼마나 벗어났는지 보여줍니다.
+        </p>
+      </a>
+      <a class="card link" href="tools/yield.html">
+        <span class="tag">신규 검토용</span>
+        <h3>예상 발전량 계산</h3>
+        <p class="muted" style="margin-bottom:0">
+          지역·설비용량·경사각·방위각을 입력하면 월별 경사면 일사량과
+          30년 발전량을 계산합니다. 모듈 열화를 반영하고
+          <strong>P50/P90 시나리오</strong>를 함께 제시합니다.
+        </p>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>왜 이 수치를 믿을 수 있는가</h2>
+    <div class="grid c2">
+      <div class="card">
+        <h3 class="mt0">원자료를 밝힙니다</h3>
+        <p class="muted" style="margin-bottom:0">
+          기상청 ASOS 일사량 관측자료 2016–2025년 177,818건입니다.
+          어느 지점의 몇 년치를 썼는지, 결측이 얼마나 있는지 지점마다 표시합니다.
+          자료가 부족한 지점은 <strong>부족하다고 표시</strong>하고 결과를 참고용으로 낮춥니다.
+        </p>
+      </div>
+      <div class="card">
+        <h3 class="mt0">계산식을 공개합니다</h3>
+        <p class="muted" style="margin-bottom:0">
+          Erbs 월평균 확산분리 + 등방성 천공 모델. 사용한 수식과 계수를
+          <a href="method.html">계산방법</a> 페이지에 전부 적어두었습니다.
+          브라우저에서 그대로 실행되므로 소스를 열어 확인할 수 있습니다.
+        </p>
+      </div>
+      <div class="card">
+        <h3 class="mt0">검증 결과를 공개합니다</h3>
+        <p class="muted" style="margin-bottom:0">
+          독립적으로 재계산한 기준표와 61개 지점을 비교해 연간 POA
+          평균 오차 0.14%, 최대 1.85%를 확인했습니다.
+          <a href="method.html#verify">지점별 비교표</a>를 그대로 공개합니다.
+        </p>
+      </div>
+      <div class="card">
+        <h3 class="mt0">한계를 먼저 말합니다</h3>
+        <p class="muted" style="margin-bottom:0">
+          음영·오염·적설·모듈 온도는 이 계산에 <strong>들어있지 않습니다</strong>.
+          월평균 기후값 기반이므로 특정 연도를 맞히지 못합니다.
+          무엇을 계산하지 <em>않았는지</em>를 결과마다 함께 적습니다.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>이 분석이 답하지 못하는 것</h2>
+    <div class="note warn">
+      <p><strong>이 도구는 발전소 설계를 대체하지 않습니다.</strong> 계산 결과는
+      무차폐 고정식 모듈을 전제한 <em>지역 기준선</em>입니다. 실제 사업 판단에는
+      현장 실측, 음영 분석, 계통 조건, 금융 조건 검토가 별도로 필요합니다.</p>
+      <p style="margin-bottom:0">진단 결과가 기준선을 크게 벗어난다면 그 자체가 결론이 아니라
+      <strong>점검을 시작할 지점</strong>입니다. 인버터 이력, 스트링별 출력, 모듈 오염도를
+      함께 확인하십시오.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <div>
+      <strong style="color:var(--text-mid)">PrimeGrid</strong> · 태양광 발전량 분석<br>
+      자료 출처: 기상청 기상자료개방포털 ASOS 일사량 관측자료
+    </div>
+    <div>
+      <a href="method.html">데이터·계산방법</a> ·
+      <a href="method.html#limits">한계와 주의사항</a> ·
+      <a href="data/poa.json">데이터셋(JSON)</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
