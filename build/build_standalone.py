@@ -18,7 +18,6 @@ OUT = ROOT / 'dist' / 'PrimeGrid_태양광분석.html'
 
 # (파일, 접두사, 탭 이름, 탭 설명)
 PAGES = [
-    ('stations.html',        's', '전국 지점 자료', '65개 관측지점 표와 지점별 월별 상세'),
     ('tools/yield.html',     'y', '예상 발전량',    '지역·설비 조건별 월별 POA와 30년 발전량'),
     ('tools/diagnosis.html', 'd', '발전량 진단',    '실제 발전량을 지역 기준선과 비교'),
     ('method.html',          'm', '데이터·계산방법', '원자료·수식·검증·한계 전문'),
@@ -83,9 +82,8 @@ def strip_nav_and_print(frag):
     """단일 파일에서는 페이지 이동 링크 대신 탭을 쓰므로 내부 링크를 탭 전환으로 바꾼다."""
     frag = re.sub(r'href="(?:\.\./)?tools/yield\.html"', 'href="#tab-y" data-tab="y"', frag)
     frag = re.sub(r'href="(?:\.\./)?tools/diagnosis\.html"', 'href="#tab-d" data-tab="d"', frag)
-    frag = re.sub(r'href="(?:\.\./)?stations\.html"', 'href="#tab-s" data-tab="s"', frag)
     frag = re.sub(r'href="(?:\.\./)?method\.html(#[\w-]*)?"', 'href="#tab-m" data-tab="m"', frag)
-    frag = re.sub(r'href="(?:\.\./)?index\.html"', 'href="#tab-s" data-tab="s"', frag)
+    frag = re.sub(r'href="(?:\.\./)?index\.html"', f'href="#tab-{PAGES[0][1]}" data-tab="{PAGES[0][1]}"', frag)
     # 파일로 배포하므로 내부 파일 링크는 의미가 없다 — 링크를 벗겨 텍스트만 남긴다
     frag = re.sub(r'<a href="(?:\.\./)?(?:data|assets)/[^"]+">([^<]*)</a>',
                   r'<span class="mono">\1</span>', frag)
@@ -157,7 +155,7 @@ doc = f'''<!doctype html>
 
 <header class="site-head no-print">
   <div class="wrap">
-    <a class="logo" href="#tab-s" data-tab="s"><span class="dot"></span>PrimeGrid</a>
+    <a class="logo" href="#tab-{PAGES[0][1]}" data-tab="{PAGES[0][1]}"><span class="dot"></span>PrimeGrid</a>
     <nav class="tabbar" role="tablist">
 {tabs}
       <button class="theme-btn" id="themeToggle" type="button">☾</button>
